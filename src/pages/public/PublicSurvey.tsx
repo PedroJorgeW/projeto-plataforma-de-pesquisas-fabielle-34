@@ -1,0 +1,328 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import { useFormSubmission } from "@/hooks/useFormSubmission";
+
+interface Form {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  end_date: string | null;
+}
+
+interface Question {
+  id: string;
+  question_text: string;
+  question_type: string;
+  ordem: number | null;
+}
+
+const responseOptions = [
+  { value: "muito_satisfeito", label: "Muito Satisfeito" },
+  { value: "satisfeito", label: "Satisfeito" },
+  { value: "insatisfeito", label: "Insatisfeito" },
+];
+
+const PublicSurvey = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<Form | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { submitFormResponse, isSubmitting } = useFormSubmission({
+    formId: form?.id || "",
+    questions,
+    onSuccess: () => navigate("/obrigado"),
+    onError: (error) => console.error('Form submission error:', error)
+  });
+
+  useEffect(() => {
+    if (id) {
+      fetchFormData();
+    }
+  }, [id]);
+
+  const fetchFormData = async () => {
+    try {
+      console.log('🔍 Buscando formulário com ID:', id);
+      
+      // Fetch form details
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      console.log('📋 Resultado busca formulário:', { formData, formError });
+
+      if (formError) {
+        console.error('❌ Error fetching form:', formError);
+        setForm(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch questions
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('form_id', id)
+        .order('ordem', { ascending: true });
+
+      if (questionsError) {
+        console.error('Error fetching questions:', questionsError);
+        setQuestions([]);
+      } else {
+        setQuestions(questionsData || []);
+      }
+
+      setForm(formData);
+    } catch (error) {
+      console.error('Error fetching form data:', error);
+      setForm(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Carregando pesquisa...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!form) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Pesquisa não encontrada</h2>
+            <p className="text-muted-foreground">
+              Esta pesquisa não existe ou foi removida.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (form.status !== 'ativo') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Pesquisa encerrada</h2>
+            <p className="text-muted-foreground">
+              Esta pesquisa já foi encerrada e não está mais aceitando respostas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (form.end_date && new Date(form.end_date) < new Date()) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Pesquisa expirada</h2>
+            <p className="text-muted-foreground">
+              O prazo para responder esta pesquisa já expirou.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Nenhuma pergunta encontrada</h2>
+            <p className="text-muted-foreground">
+              Esta pesquisa ainda não possui perguntas cadastradas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleAnswerChange = (value: string) => {
+    const qId = questions[currentQuestion]?.id;
+    if (!qId) return;
+    setAnswers(prev => ({
+      ...prev,
+      [qId]: value
+    }));
+  };
+
+  const handleNext = () => {
+    const qId = questions[currentQuestion]?.id;
+    if (!qId || !answers[qId]) {
+      toast({
+        title: "Resposta obrigatória",
+        description: "Por favor, selecione uma resposta para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form?.id) {
+      toast({
+        title: "Formulário inválido",
+        description: "Não foi possível identificar o formulário atual.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação final: todas as perguntas devem estar respondidas
+    const missing = questions.filter(q => !answers[q.id]);
+    if (missing.length > 0) {
+      const firstMissingIndex = questions.findIndex(q => !answers[q.id]);
+      if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
+      toast({
+        title: "Respostas obrigatórias",
+        description: "Responda todas as perguntas antes de enviar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await submitFormResponse(answers);
+  };
+
+  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const isLastQuestion = currentQuestion === questions.length - 1;
+  const currentQuestionId = questions[currentQuestion]?.id;
+
+  return (
+    <div className="min-h-screen bg-background p-4">
+      <div className="container mx-auto max-w-2xl">
+        <div className="mb-8 text-center">
+          <img 
+            src="/lovable-uploads/94c9c571-47aa-423f-b803-13621c9b9547.png" 
+            alt="Performance to Be Logo" 
+            className="h-20 mx-auto mb-4 object-contain"
+          />
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            {form.title}
+          </h1>
+          {form.description && (
+            <p className="text-muted-foreground">
+              {form.description}
+            </p>
+          )}
+        </div>
+
+        <div className="mb-6">
+          <div className="flex justify-between text-sm text-muted-foreground mb-2">
+            <span>Pergunta {currentQuestion + 1} de {questions.length}</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <Progress value={progress} className="w-full" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {questions[currentQuestion]?.question_text}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <RadioGroup
+              value={answers[currentQuestionId] || ""}
+              onValueChange={handleAnswerChange}
+            >
+              {responseOptions.map((option) => (
+                <div 
+                  key={option.value} 
+                  className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${
+                    answers[currentQuestionId] === option.value 
+                      ? option.value === 'muito_satisfeito' 
+                        ? 'border-very-satisfied bg-very-satisfied/10'
+                        : option.value === 'satisfeito'
+                        ? 'border-satisfied bg-satisfied/10'
+                        : 'border-unsatisfied bg-unsatisfied/10'
+                      : 'border-border'
+                  }`}
+                >
+                  <RadioGroupItem value={option.value} id={option.value} />
+                  <Label 
+                    htmlFor={option.value} 
+                    className={`cursor-pointer font-medium ${
+                      answers[currentQuestionId] === option.value 
+                        ? option.value === 'muito_satisfeito' 
+                          ? 'text-very-satisfied'
+                          : option.value === 'satisfeito'
+                          ? 'text-satisfied'
+                          : 'text-unsatisfied'
+                        : ''
+                    }`}
+                  >
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+
+            <div className="flex justify-between gap-4 pt-4">
+              <Button
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={currentQuestion === 0}
+              >
+                Anterior
+              </Button>
+              <Button
+                onClick={handleNext}
+                disabled={isSubmitting}
+              >
+                {isLastQuestion ? "Enviar Respostas" : "Próxima"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default PublicSurvey;
