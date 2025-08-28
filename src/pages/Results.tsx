@@ -166,19 +166,12 @@ const Results = () => {
   };
 
   const processFormResults = (form: Form): FormResults => {
-    // Filtrar apenas respostas completas (que têm resposta para todas as perguntas)
-    const completeResponses = form.responses.filter((response: any) => {
-      const answersCount = response.response_answers?.length || 0;
-      return answersCount === form.questions.length;
-    });
-    
-    const totalResponses = completeResponses.length;
+    const totalResponses = form.responses.length;
     
     console.log(`🔍 Processando resultados para ${form.title}:`, {
-      totalRespostas: form.responses.length,
-      respostasCompletas: totalResponses,
+      totalRespostas: totalResponses,
       questionsCount: form.questions.length,
-      responses: completeResponses
+      responses: form.responses
     });
     
     if (totalResponses === 0) {
@@ -189,13 +182,13 @@ const Results = () => {
       };
     }
 
-    // Processar resultados por pergunta usando apenas respostas completas
+    // Processar resultados por pergunta
     const questionResults: QuestionResult[] = form.questions
       .sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0))
       .map((question: any) => {
-        // Encontrar respostas para esta pergunta apenas de participantes que completaram o formulário
+        // Encontrar respostas para esta pergunta
         const questionAnswers: any[] = [];
-        completeResponses.forEach((response: any) => {
+        form.responses.forEach((response: any) => {
           if (response.response_answers) {
             const answersForQuestion = response.response_answers.filter(
               (answer: any) => answer.question_id === question.id
@@ -204,7 +197,7 @@ const Results = () => {
           }
         });
 
-        console.log(`📝 Pergunta "${question.question_text}" - ${questionAnswers.length} respostas (apenas completas):`, questionAnswers);
+        console.log(`📝 Pergunta "${question.question_text}" - ${questionAnswers.length} respostas:`, questionAnswers);
         
         if (question.question_type === 'multiple_choice' && question.opcoes) {
           const optionCounts: { [key: string]: number } = {};
