@@ -74,7 +74,11 @@ const Forms = () => {
         .from('forms')
         .select(`
           *,
-          responses(count)
+          questions(id),
+          responses(
+            id,
+            response_answers(id, question_id, resposta)
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -86,12 +90,23 @@ const Forms = () => {
           variant: "destructive"
         });
       } else {
-        const formsWithCount = data.map(form => ({
-          ...form,
-          _count: {
-            responses: form.responses?.[0]?.count || 0
-          }
-        }));
+        const formsWithCount = (data as any[]).map((form: any) => {
+          const questionsCount = form.questions?.length || 0;
+          const completeCount = (form.responses || []).filter((resp: any) => {
+            const answers = resp.response_answers || [];
+            const uniqueAnswered = new Set(
+              answers
+                .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
+                .map((a: any) => a.question_id)
+            );
+            return questionsCount > 0 && uniqueAnswered.size === questionsCount;
+          }).length;
+
+          return {
+            ...form,
+            _count: { responses: completeCount }
+          };
+        });
         setForms(formsWithCount);
       }
     } catch (error) {

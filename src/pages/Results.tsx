@@ -166,12 +166,26 @@ const Results = () => {
   };
 
   const processFormResults = (form: Form): FormResults => {
-    const totalResponses = form.responses.length;
+    const questionsCount = form.questions.length;
+
+    // Considerar apenas respostas COMPLETAS: uma resposta não vazia para cada pergunta
+    const completeResponses = form.responses.filter((response: any) => {
+      const answers = response.response_answers || [];
+      const uniqueAnswered = new Set(
+        answers
+          .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
+          .map((a: any) => a.question_id)
+      );
+      return questionsCount > 0 && uniqueAnswered.size === questionsCount;
+    });
+
+    const totalResponses = completeResponses.length;
     
     console.log(`🔍 Processando resultados para ${form.title}:`, {
-      totalRespostas: totalResponses,
-      questionsCount: form.questions.length,
-      responses: form.responses
+      totalRespostas: form.responses.length,
+      respostasCompletas: totalResponses,
+      questionsCount,
+      responses: completeResponses
     });
     
     if (totalResponses === 0) {
@@ -182,18 +196,18 @@ const Results = () => {
       };
     }
 
-    // Processar resultados por pergunta
+    // Processar resultados por pergunta usando apenas respostas completas
     const questionResults: QuestionResult[] = form.questions
       .sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0))
       .map((question: any) => {
-        // Encontrar respostas para esta pergunta
+        // Para cada pergunta, coletar exatamente 1 resposta por participante completo
         const questionAnswers: any[] = [];
-        form.responses.forEach((response: any) => {
+        completeResponses.forEach((response: any) => {
           if (response.response_answers) {
-            const answersForQuestion = response.response_answers.filter(
-              (answer: any) => answer.question_id === question.id
+            const answer = response.response_answers.find(
+              (a: any) => a.question_id === question.id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== ''
             );
-            questionAnswers.push(...answersForQuestion);
+            if (answer) questionAnswers.push(answer);
           }
         });
 

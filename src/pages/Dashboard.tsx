@@ -38,10 +38,17 @@ const Dashboard = () => {
 
     setIsLoading(true);
     try {
-      // Buscar formulários
+      // Buscar formulários com perguntas e respostas para calcular SOMENTE completas
       const { data: formsData, error: formsError } = await supabase
         .from('forms')
-        .select('*')
+        .select(`
+          *,
+          questions(id),
+          responses(
+            id,
+            response_answers(id, question_id, resposta)
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (formsError) {
@@ -49,24 +56,23 @@ const Dashboard = () => {
         return;
       }
 
-      // Para cada formulário, contar suas respostas
-      const formsWithResponseCounts = await Promise.all(
-        (formsData || []).map(async (form) => {
-          const { count, error: countError } = await supabase
-            .from('responses')
-            .select('*', { count: 'exact', head: true })
-            .eq('form_id', form.id);
+      // Calcular contagem de respostas COMPLETAS por formulário (1 resposta válida por pergunta)
+      const formsWithResponseCounts = (formsData || []).map((form: any) => {
+        const questionsCount = form.questions?.length || 0;
+        const completeCount = (form.responses || []).filter((resp: any) => {
+          const answers = resp.response_answers || [];
+          const uniqueAnswered = new Set(
+            answers
+              .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
+              .map((a: any) => a.question_id)
+          );
+          return questionsCount > 0 && uniqueAnswered.size === questionsCount;
+        }).length;
+        // Manter formato esperado pelo restante do componente
+        return { ...form, responses: [{ count: completeCount }] };
+      });
 
-          if (countError) {
-            console.error('Error counting responses for form:', form.id, countError);
-            return { ...form, responses: [{ count: 0 }] };
-          }
-
-          return { ...form, responses: [{ count: count || 0 }] };
-        })
-      );
-
-      setForms(formsWithResponseCounts);
+      setForms(formsWithResponseCounts as any);
 
       // Calcular estatísticas
       const totalForms = formsWithResponseCounts.length;
