@@ -227,7 +227,8 @@ const EditForm = () => {
             form_id: id!,
             question_text: question.question_text.trim(),
             question_type: question.question_type,
-            ordem: existingQuestions.length + index + 1
+            ordem: existingQuestions.length + index + 1,
+            admin_user_id: user?.id || ''
           }));
 
         if (questionsToInsert.length > 0) {
