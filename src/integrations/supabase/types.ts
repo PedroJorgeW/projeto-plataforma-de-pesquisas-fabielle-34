@@ -44,6 +44,7 @@ export type Database = {
           created_at: string
           description: string | null
           end_date: string | null
+          form_id: string
           id: string
           status: string
           title: string
@@ -53,6 +54,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           end_date?: string | null
+          form_id?: string
           id?: string
           status?: string
           title: string
@@ -62,6 +64,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           end_date?: string | null
+          form_id?: string
           id?: string
           status?: string
           title?: string
@@ -78,6 +81,7 @@ export type Database = {
       }
       questions: {
         Row: {
+          admin_user_id: string
           created_at: string
           form_id: string
           id: string
@@ -86,6 +90,7 @@ export type Database = {
           question_type: string
         }
         Insert: {
+          admin_user_id: string
           created_at?: string
           form_id: string
           id?: string
@@ -94,6 +99,7 @@ export type Database = {
           question_type?: string
         }
         Update: {
+          admin_user_id?: string
           created_at?: string
           form_id?: string
           id?: string
@@ -131,21 +137,21 @@ export type Database = {
           id: string
           question_id: string
           response_id: string
-          resposta: string | null
+          resposta: string
         }
         Insert: {
           created_at?: string
           id?: string
           question_id: string
           response_id: string
-          resposta?: string | null
+          resposta: string
         }
         Update: {
           created_at?: string
           id?: string
           question_id?: string
           response_id?: string
-          resposta?: string | null
+          resposta?: string
         }
         Relationships: [
           {
@@ -330,7 +336,18 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      insert_response_answers: {
+        Args: { p_answers: Json; p_response_id: string }
+        Returns: undefined
+      }
+      insert_response_with_answers_anon: {
+        Args: { p_answers: Json; p_form_id: string }
+        Returns: string
+      }
+      update_admin_user_profile: {
+        Args: { new_nome: string; new_senha_hash?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
