@@ -345,7 +345,7 @@ export type Database = {
         Returns: string
       }
       update_admin_user_profile: {
-        Args: { new_nome: string; new_senha_hash?: string }
+        Args: { new_nome: string }
         Returns: undefined
       }
     }

@@ -8,7 +8,7 @@ import { User, Mail, Lock, Save, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import * as bcrypt from "bcryptjs";
+
 import * as XLSX from "xlsx";
 const Settings = () => {
   const {
@@ -138,20 +138,7 @@ const Settings = () => {
         return;
       }
 
-      // Also update the hash in admin_users table for consistency
-      const senhaHash = await bcrypt.hash(formData.newPassword, 10);
-      const { error: dbError } = await supabase
-        .from('admin_users')
-        .update({ 
-          senha_hash: senhaHash,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user?.id);
-
-      if (dbError) {
-        console.error('Error updating admin user hash:', dbError);
-        // Don't return error here since auth password was updated successfully
-      }
+      // Password successfully updated in Supabase Auth
 
       // Clear password fields
       setFormData(prev => ({
