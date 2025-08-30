@@ -58,9 +58,9 @@ const PublicSurvey = () => {
     try {
       console.log('🔍 Buscando formulário com ID:', id);
       
-      // Fetch form details
+      // Fetch form details using public-safe view
       const { data: formData, error: formError } = await supabase
-        .from('forms')
+        .from('public_forms')
         .select('*')
         .eq('id', id)
         .single();
@@ -74,9 +74,9 @@ const PublicSurvey = () => {
         return;
       }
 
-      // Fetch questions
+      // Fetch questions using public-safe view
       const { data: questionsData, error: questionsError } = await supabase
-        .from('questions')
+        .from('public_questions')
         .select('*')
         .eq('form_id', id)
         .order('ordem', { ascending: true });
