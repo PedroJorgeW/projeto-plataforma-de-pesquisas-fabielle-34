@@ -559,6 +559,10 @@ export type Database = {
         Args: { p_answers: Json; p_form_id: string }
         Returns: string
       }
+      is_admin_user: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       update_admin_user_profile: {
         Args: { new_nome: string }
         Returns: undefined
