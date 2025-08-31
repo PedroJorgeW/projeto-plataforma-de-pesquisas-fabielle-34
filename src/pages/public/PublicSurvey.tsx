@@ -14,8 +14,8 @@ interface Form {
   id: string;
   title: string;
   description: string | null;
-  status: string;
   end_date: string | null;
+  created_at: string;
 }
 
 interface Question {
@@ -60,7 +60,7 @@ const PublicSurvey = () => {
       
       // Fetch form details using public-safe view
       const { data: formData, error: formError } = await supabase
-        .from('public_forms')
+        .from('public_active_forms')
         .select('*')
         .eq('id', id)
         .single();
@@ -76,7 +76,7 @@ const PublicSurvey = () => {
 
       // Fetch questions using public-safe view
       const { data: questionsData, error: questionsError } = await supabase
-        .from('public_questions')
+        .from('public_form_questions')
         .select('*')
         .eq('form_id', id)
         .order('ordem', { ascending: true });
@@ -125,35 +125,9 @@ const PublicSurvey = () => {
     );
   }
 
-  if (form.status !== 'ativo') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Pesquisa encerrada</h2>
-            <p className="text-muted-foreground">
-              Esta pesquisa já foi encerrada e não está mais aceitando respostas.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Note: Since we're using public_active_forms view, the form is already active
+  // and within date range - no need to check status or expiration
 
-  if (form.end_date && new Date(form.end_date) < new Date()) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Pesquisa expirada</h2>
-            <p className="text-muted-foreground">
-              O prazo para responder esta pesquisa já expirou.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (questions.length === 0) {
     return (
