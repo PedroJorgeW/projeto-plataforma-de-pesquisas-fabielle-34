@@ -99,7 +99,7 @@ const Results = () => {
 
     setIsLoading(true);
     try {
-      // Buscar formulários com perguntas
+      // Buscar formulários do admin logado com perguntas
       const { data: formsData, error: formsError } = await supabase
         .from('forms')
         .select(`
@@ -107,6 +107,7 @@ const Results = () => {
           questions(*)
         `)
         .eq('status', 'ativo')
+        .eq('admin_user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (formsError) {
