@@ -204,25 +204,11 @@ export type Database = {
             referencedColumns: ["question_id"]
           },
           {
-            foreignKeyName: "answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "view_responses_export"
-            referencedColumns: ["question_id"]
-          },
-          {
             foreignKeyName: "answers_response_id_fkey"
             columns: ["response_id"]
             isOneToOne: false
             referencedRelation: "responses"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "answers_response_id_fkey"
-            columns: ["response_id"]
-            isOneToOne: false
-            referencedRelation: "view_responses_export"
-            referencedColumns: ["response_id"]
           },
         ]
       }
@@ -502,55 +488,19 @@ export type Database = {
           },
         ]
       }
-      view_responses_export: {
-        Row: {
-          form_id: string | null
-          question_id: string | null
-          question_text: string | null
-          response_date: string | null
-          response_id: string | null
-          resposta: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_active_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "view_active_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "view_form_summary"
-            referencedColumns: ["form_id"]
-          },
-        ]
-      }
     }
     Functions: {
+      get_responses_export: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          form_id: string
+          question_id: string
+          question_text: string
+          response_date: string
+          response_id: string
+          resposta: string
+        }[]
+      }
       insert_response_answers: {
         Args: { p_answers: Json; p_response_id: string }
         Returns: undefined
