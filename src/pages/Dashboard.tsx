@@ -38,7 +38,7 @@ const Dashboard = () => {
 
     setIsLoading(true);
     try {
-      // Buscar formulários do admin logado com perguntas e respostas para calcular SOMENTE completas
+      // Buscar formulários com perguntas e respostas para calcular SOMENTE completas
       const { data: formsData, error: formsError } = await supabase
         .from('forms')
         .select(`
@@ -49,7 +49,6 @@ const Dashboard = () => {
             response_answers(id, question_id, resposta)
           )
         `)
-        .eq('admin_user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (formsError) {
