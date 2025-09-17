@@ -415,15 +415,9 @@ const Results = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Resultados</h1>
-          <p className="text-muted-foreground">Visualize os dados coletados das pesquisas</p>
-        </div>
-        <Button onClick={exportResults} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Exportar
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Resultados</h1>
+        <p className="text-muted-foreground">Visualize os dados coletados das pesquisas</p>
       </div>
 
       <div className="flex gap-4 items-center">

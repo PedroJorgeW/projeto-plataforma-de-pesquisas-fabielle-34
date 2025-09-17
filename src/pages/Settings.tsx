@@ -389,25 +389,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Account Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações da Conta</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-muted rounded-lg p-4">
-              <h3 className="font-medium text-foreground mb-2">Backup de Dados</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Baixe uma cópia de todos os seus dados e formulários.
-              </p>
-              <Button variant="outline" size="sm" onClick={handleBackupData} disabled={isLoading}>
-                <Download className="h-4 w-4 mr-2" />
-                {isLoading ? "Gerando Backup..." : "Solicitar Backup"}
-              </Button>
-            </div>
-            
-          </CardContent>
-        </Card>
       </div>
     </div>;
 };
