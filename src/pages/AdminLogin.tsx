@@ -13,9 +13,21 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, session } = useAuth();
+  const { signIn, signOut, session } = useAuth();
 
-  // Redirect to admin if already authenticated
+  // Clear any existing session when component mounts to force fresh login
+  useEffect(() => {
+    const clearSessionAndRedirect = async () => {
+      // If there's an existing session, clear it to force fresh login
+      if (session) {
+        await signOut();
+      }
+    };
+    
+    clearSessionAndRedirect();
+  }, []); // Only run on mount
+
+  // Redirect to admin only after successful login via handleSubmit
   useEffect(() => {
     if (session) {
       const from = location.state?.from || '/admin';
