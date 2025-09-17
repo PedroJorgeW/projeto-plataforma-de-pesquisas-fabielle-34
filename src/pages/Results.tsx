@@ -323,11 +323,6 @@ const Results = () => {
 
   useEffect(() => {
     fetchFormsAndResults();
-    
-    // Atualizar dados a cada 10 segundos para mostrar novas respostas
-    const interval = setInterval(fetchFormsAndResults, 10000);
-    
-    return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
