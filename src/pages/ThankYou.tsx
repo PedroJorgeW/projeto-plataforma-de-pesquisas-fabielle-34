@@ -23,8 +23,7 @@ const ThankYou = () => {
             </h1>
             
             <p className="text-lg text-muted-foreground mb-6">
-              Sua pesquisa foi enviada com sucesso. Suas respostas são muito importantes 
-              para melhorarmos continuamente nosso ambiente organizacional.
+              Suas respostas foram registradas com sucesso e servirão de base para estudos que visam fortalecer a organização.
             </p>
 
             <div className="bg-accent rounded-lg p-6 mb-8">
@@ -33,8 +32,7 @@ const ThankYou = () => {
                 <span className="font-medium text-foreground">Sua opinião importa</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                🔒 Suas respostas são completamente anônimas e estão protegidas conforme a LGPD. 
-                Os resultados serão utilizados apenas para análises estatísticas e melhorias organizacionais.
+                🔒 Os dados são anônimos, protegidos em conformidade com a LGPD e utilizados exclusivamente para análises técnicas e estratégicas.
               </p>
             </div>
 
