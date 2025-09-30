@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -16,6 +17,7 @@ interface Form {
   description: string | null;
   end_date: string | null;
   created_at: string;
+  form_type?: string;
 }
 
 interface Question {
@@ -23,6 +25,8 @@ interface Question {
   question_text: string;
   question_type: string;
   ordem: number | null;
+  is_required?: boolean;
+  custom_options?: string[] | null;
 }
 
 const responseOptions = [
@@ -154,8 +158,11 @@ const PublicSurvey = () => {
   };
 
   const handleNext = () => {
-    const qId = questions[currentQuestion]?.id;
-    if (!qId || !answers[qId]) {
+    const currentQ = questions[currentQuestion];
+    const qId = currentQ?.id;
+    
+    // Only validate if question is required
+    if (qId && currentQ?.is_required !== false && !answers[qId]) {
       toast({
         title: "Resposta obrigatória",
         description: "Por favor, selecione uma resposta para continuar.",
@@ -187,14 +194,14 @@ const PublicSurvey = () => {
       return;
     }
 
-    // Validação final: todas as perguntas devem estar respondidas
-    const missing = questions.filter(q => !answers[q.id]);
+    // Validação final: apenas perguntas obrigatórias devem estar respondidas
+    const missing = questions.filter(q => q.is_required !== false && !answers[q.id]);
     if (missing.length > 0) {
-      const firstMissingIndex = questions.findIndex(q => !answers[q.id]);
+      const firstMissingIndex = questions.findIndex(q => q.is_required !== false && !answers[q.id]);
       if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
       toast({
         title: "Respostas obrigatórias",
-        description: "Responda todas as perguntas antes de enviar.",
+        description: "Responda todas as perguntas obrigatórias antes de enviar.",
         variant: "destructive",
       });
       return;
@@ -205,7 +212,21 @@ const PublicSurvey = () => {
 
   const progress = ((currentQuestion + 1) / questions.length) * 100;
   const isLastQuestion = currentQuestion === questions.length - 1;
-  const currentQuestionId = questions[currentQuestion]?.id;
+  const currentQuestionData = questions[currentQuestion];
+  const currentQuestionId = currentQuestionData?.id;
+  
+  // Determine response options based on form type
+  const getResponseOptions = () => {
+    if (form?.form_type === "custom" && currentQuestionData?.custom_options && currentQuestionData.custom_options.length > 0) {
+      return currentQuestionData.custom_options.map((opt, idx) => ({
+        value: opt,
+        label: opt
+      }));
+    }
+    return responseOptions;
+  };
+
+  const displayOptions = getResponseOptions();
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -236,45 +257,64 @@ const PublicSurvey = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">
-              {questions[currentQuestion]?.question_text}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">
+                {currentQuestionData?.question_text}
+              </CardTitle>
+              {currentQuestionData?.is_required === false && (
+                <Badge variant="outline" className="ml-2">Opcional</Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <RadioGroup
               value={answers[currentQuestionId] || ""}
               onValueChange={handleAnswerChange}
             >
-              {responseOptions.map((option) => (
-                <div 
-                  key={option.value} 
-                  className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${
-                    answers[currentQuestionId] === option.value 
-                      ? option.value === 'muito_satisfeito' 
-                        ? 'border-very-satisfied bg-very-satisfied/10'
-                        : option.value === 'satisfeito'
-                        ? 'border-satisfied bg-satisfied/10'
-                        : 'border-unsatisfied bg-unsatisfied/10'
-                      : 'border-border'
-                  }`}
-                >
-                  <RadioGroupItem value={option.value} id={option.value} />
-                  <Label 
-                    htmlFor={option.value} 
-                    className={`cursor-pointer font-medium ${
-                      answers[currentQuestionId] === option.value 
-                        ? option.value === 'muito_satisfeito' 
-                          ? 'text-very-satisfied'
-                          : option.value === 'satisfeito'
-                          ? 'text-satisfied'
-                          : 'text-unsatisfied'
-                        : ''
-                    }`}
+              {displayOptions.map((option, idx) => {
+                const isSelected = answers[currentQuestionId] === option.value;
+                const isStandardForm = form?.form_type !== "custom";
+                
+                // Apply color coding only for standard forms
+                let borderClass = 'border-border';
+                let bgClass = '';
+                let textClass = '';
+                
+                if (isSelected && isStandardForm) {
+                  if (option.value === 'muito_satisfeito') {
+                    borderClass = 'border-very-satisfied';
+                    bgClass = 'bg-very-satisfied/10';
+                    textClass = 'text-very-satisfied';
+                  } else if (option.value === 'satisfeito') {
+                    borderClass = 'border-satisfied';
+                    bgClass = 'bg-satisfied/10';
+                    textClass = 'text-satisfied';
+                  } else if (option.value === 'insatisfeito') {
+                    borderClass = 'border-unsatisfied';
+                    bgClass = 'bg-unsatisfied/10';
+                    textClass = 'text-unsatisfied';
+                  }
+                } else if (isSelected) {
+                  borderClass = 'border-primary';
+                  bgClass = 'bg-primary/10';
+                  textClass = 'text-primary';
+                }
+                
+                return (
+                  <div 
+                    key={`${option.value}-${idx}`}
+                    className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${borderClass} ${bgClass}`}
                   >
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
+                    <RadioGroupItem value={option.value} id={`${option.value}-${idx}`} />
+                    <Label 
+                      htmlFor={`${option.value}-${idx}`}
+                      className={`cursor-pointer font-medium ${textClass}`}
+                    >
+                      {option.label}
+                    </Label>
+                  </div>
+                );
+              })}
             </RadioGroup>
 
             <div className="flex justify-between gap-4 pt-4">

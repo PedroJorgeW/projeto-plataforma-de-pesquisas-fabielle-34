@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface Question {
   id: string;
@@ -18,6 +20,8 @@ interface Question {
   question_type: string;
   ordem: number | null;
   form_id: string;
+  is_required: boolean;
+  custom_options: string[] | null;
   isNew?: boolean;
 }
 
@@ -31,7 +35,8 @@ const EditForm = () => {
     title: "",
     description: "",
     status: "",
-    end_date: ""
+    end_date: "",
+    form_type: "standard" as "standard" | "custom"
   });
   
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -89,11 +94,20 @@ const EditForm = () => {
         title: formData.title,
         description: formData.description || "",
         status: formData.status,
-        end_date: formData.end_date || ""
+        end_date: formData.end_date || "",
+        form_type: ((formData as any).form_type || "standard") as "standard" | "custom"
       };
 
       setFormData(loadedFormData);
-      setQuestions(questionsData || []);
+      
+      // Map questions to include new fields with defaults
+      const mappedQuestions: Question[] = (questionsData || []).map((q: any) => ({
+        ...q,
+        is_required: q.is_required ?? true,
+        custom_options: q.custom_options || null
+      }));
+      
+      setQuestions(mappedQuestions);
       
       // Store original data for comparison
       setOriginalData({
@@ -121,6 +135,8 @@ const EditForm = () => {
       question_type: "text",
       ordem: questions.length + 1,
       form_id: id!,
+      is_required: true,
+      custom_options: formData.form_type === "custom" ? [""] : null,
       isNew: true
     };
     setQuestions([...questions, newQuestion]);
@@ -136,6 +152,42 @@ const EditForm = () => {
     setQuestions(questions.map(q => 
       q.id === questionId ? { ...q, question_text: text } : q
     ));
+  };
+
+  const toggleRequired = (questionId: string) => {
+    setQuestions(questions.map(q => 
+      q.id === questionId ? { ...q, is_required: !q.is_required } : q
+    ));
+  };
+
+  const addCustomOption = (questionId: string) => {
+    setQuestions(questions.map(q => {
+      if (q.id === questionId) {
+        const currentOptions = q.custom_options || [];
+        return { ...q, custom_options: [...currentOptions, ""] };
+      }
+      return q;
+    }));
+  };
+
+  const updateCustomOption = (questionId: string, optionIndex: number, value: string) => {
+    setQuestions(questions.map(q => {
+      if (q.id === questionId && q.custom_options) {
+        const newOptions = [...q.custom_options];
+        newOptions[optionIndex] = value;
+        return { ...q, custom_options: newOptions };
+      }
+      return q;
+    }));
+  };
+
+  const removeCustomOption = (questionId: string, optionIndex: number) => {
+    setQuestions(questions.map(q => {
+      if (q.id === questionId && q.custom_options && q.custom_options.length > 1) {
+        return { ...q, custom_options: q.custom_options.filter((_, i) => i !== optionIndex) };
+      }
+      return q;
+    }));
   };
 
   const handleSave = async () => {
@@ -209,7 +261,11 @@ const EditForm = () => {
             .update({
               question_text: question.question_text.trim(),
               question_type: question.question_type,
-              ordem: questions.indexOf(question) + 1
+              ordem: questions.indexOf(question) + 1,
+              is_required: question.is_required,
+              custom_options: formData.form_type === "custom" && question.custom_options 
+                ? question.custom_options.filter(opt => opt.trim()) 
+                : null
             })
             .eq('id', question.id);
 
@@ -228,7 +284,11 @@ const EditForm = () => {
             question_text: question.question_text.trim(),
             question_type: question.question_type,
             ordem: existingQuestions.length + index + 1,
-            admin_user_id: user?.id || ''
+            admin_user_id: user?.id || '',
+            is_required: question.is_required,
+            custom_options: formData.form_type === "custom" && question.custom_options 
+              ? question.custom_options.filter(opt => opt.trim()) 
+              : null
           }));
 
         if (questionsToInsert.length > 0) {
@@ -291,7 +351,12 @@ const EditForm = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Informações Básicas</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Informações Básicas</CardTitle>
+            <Badge variant={formData.form_type === "custom" ? "default" : "secondary"}>
+              {formData.form_type === "custom" ? "Formulário Personalizado" : "Formulário Padrão"}
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -362,31 +427,97 @@ const EditForm = () => {
             </div>
           ) : (
             questions.map((question, index) => (
-              <div key={question.id} className="flex items-start gap-3 p-4 border rounded-lg">
-                <div className="flex-1">
-                  <Label htmlFor={`question-${question.id}`}>
-                    Pergunta {index + 1}
-                    {question.isNew && <span className="text-green-600 ml-1">(Nova)</span>}
-                  </Label>
-                  <Textarea
-                    id={`question-${question.id}`}
-                    value={question.question_text}
-                    onChange={(e) => updateQuestion(question.id, e.target.value)}
-                    placeholder="Digite sua pergunta..."
-                    rows={2}
-                    disabled={isSaving}
-                  />
+              <div key={question.id} className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={`question-${question.id}`}>
+                        Pergunta {index + 1}
+                        {question.isNew && <span className="text-green-600 ml-1">(Nova)</span>}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`required-${question.id}`}
+                          checked={question.is_required}
+                          onCheckedChange={() => toggleRequired(question.id)}
+                          disabled={isSaving}
+                        />
+                        <Label htmlFor={`required-${question.id}`} className="text-sm font-normal cursor-pointer">
+                          Obrigatória
+                        </Label>
+                      </div>
+                    </div>
+                    <Textarea
+                      id={`question-${question.id}`}
+                      value={question.question_text}
+                      onChange={(e) => updateQuestion(question.id, e.target.value)}
+                      placeholder="Digite sua pergunta..."
+                      rows={2}
+                      disabled={isSaving}
+                    />
+
+                    {formData.form_type === "custom" && question.custom_options && (
+                      <div className="space-y-2 pl-4 border-l-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Opções de Resposta</Label>
+                          <Button
+                            onClick={() => addCustomOption(question.id)}
+                            variant="ghost"
+                            size="sm"
+                            disabled={isSaving}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar Opção
+                          </Button>
+                        </div>
+                        {question.custom_options.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center gap-2">
+                            <Badge variant="outline" className="px-2">
+                              {optIndex + 1}
+                            </Badge>
+                            <Input
+                              value={option}
+                              onChange={(e) => updateCustomOption(question.id, optIndex, e.target.value)}
+                              placeholder={`Opção ${optIndex + 1}`}
+                              disabled={isSaving}
+                            />
+                            {question.custom_options && question.custom_options.length > 1 && (
+                              <Button
+                                onClick={() => removeCustomOption(question.id, optIndex)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={isSaving}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {formData.form_type === "standard" && (
+                      <div className="text-sm text-muted-foreground pl-4 border-l-2">
+                        <p className="font-medium mb-1">Opções de Resposta (fixas):</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Muito Satisfeito</li>
+                          <li>Satisfeito</li>
+                          <li>Insatisfeito</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  {questions.length > 1 && (
+                    <Button
+                      onClick={() => removeQuestion(question.id)}
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSaving}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                {questions.length > 1 && (
-                  <Button
-                    onClick={() => removeQuestion(question.id)}
-                    variant="ghost"
-                    size="sm"
-                    disabled={isSaving}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             ))
           )}

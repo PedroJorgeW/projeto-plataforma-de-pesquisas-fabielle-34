@@ -53,6 +53,7 @@ interface Form {
   end_date: string | null;
   created_at: string;
   admin_user_id: string;
+  form_type?: string;
   _count?: {
     responses: number;
   };
@@ -307,6 +308,7 @@ const Forms = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome do Formulário</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Data de Criação</TableHead>
                   <TableHead>Respostas</TableHead>
@@ -318,6 +320,11 @@ const Forms = () => {
                 {forms.map((form) => (
                   <TableRow key={form.id}>
                     <TableCell className="font-medium">{form.title}</TableCell>
+                    <TableCell>
+                      <Badge variant={form.form_type === "custom" ? "default" : "secondary"}>
+                        {form.form_type === "custom" ? "Personalizado" : "Padrão"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {form.description || "Sem descrição"}
                     </TableCell>
