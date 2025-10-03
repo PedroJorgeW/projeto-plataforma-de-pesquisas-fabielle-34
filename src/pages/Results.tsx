@@ -168,24 +168,22 @@ const Results = () => {
   const processFormResults = (form: Form): FormResults => {
     const questionsCount = form.questions.length;
 
-    // Considerar apenas respostas COMPLETAS: uma resposta não vazia para cada pergunta
-    const completeResponses = form.responses.filter((response: any) => {
+    // Considerar todas as respostas válidas (com pelo menos uma resposta)
+    const validResponses = form.responses.filter((response: any) => {
       const answers = response.response_answers || [];
-      const uniqueAnswered = new Set(
-        answers
-          .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
-          .map((a: any) => a.question_id)
+      // Uma resposta é válida se tiver pelo menos uma answer
+      return answers.length > 0 && answers.some((a: any) => 
+        a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== ''
       );
-      return questionsCount > 0 && uniqueAnswered.size === questionsCount;
     });
 
-    const totalResponses = completeResponses.length;
+    const totalResponses = validResponses.length;
     
     console.log(`🔍 Processando resultados para ${form.title}:`, {
       totalRespostas: form.responses.length,
-      respostasCompletas: totalResponses,
+      respostasValidas: totalResponses,
       questionsCount,
-      responses: completeResponses
+      responses: validResponses
     });
     
     if (totalResponses === 0) {
@@ -200,9 +198,9 @@ const Results = () => {
     const questionResults: QuestionResult[] = form.questions
       .sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0))
       .map((question: any) => {
-        // Para cada pergunta, coletar exatamente 1 resposta por participante completo
+        // Para cada pergunta, coletar respostas dos participantes válidos
         const questionAnswers: any[] = [];
-        completeResponses.forEach((response: any) => {
+        validResponses.forEach((response: any) => {
           if (response.response_answers) {
             const answer = response.response_answers.find(
               (a: any) => a.question_id === question.id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== ''
