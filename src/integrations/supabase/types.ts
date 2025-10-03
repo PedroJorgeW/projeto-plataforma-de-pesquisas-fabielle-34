@@ -45,6 +45,7 @@ export type Database = {
           description: string | null
           end_date: string | null
           form_id: string
+          form_type: string | null
           id: string
           status: string
           title: string
@@ -55,6 +56,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           form_id?: string
+          form_type?: string | null
           id?: string
           status?: string
           title: string
@@ -65,6 +67,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           form_id?: string
+          form_type?: string | null
           id?: string
           status?: string
           title?: string
@@ -83,8 +86,10 @@ export type Database = {
         Row: {
           admin_user_id: string
           created_at: string
+          custom_options: Json | null
           form_id: string
           id: string
+          is_required: boolean | null
           ordem: number | null
           question_text: string
           question_type: string
@@ -92,8 +97,10 @@ export type Database = {
         Insert: {
           admin_user_id: string
           created_at?: string
+          custom_options?: Json | null
           form_id: string
           id?: string
+          is_required?: boolean | null
           ordem?: number | null
           question_text: string
           question_type?: string
@@ -101,8 +108,10 @@ export type Database = {
         Update: {
           admin_user_id?: string
           created_at?: string
+          custom_options?: Json | null
           form_id?: string
           id?: string
+          is_required?: boolean | null
           ordem?: number | null
           question_text?: string
           question_type?: string
@@ -126,8 +135,8 @@ export type Database = {
             foreignKeyName: "questions_form_id_fkey"
             columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
           },
         ]
       }
@@ -159,13 +168,6 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "public_form_questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "public_questions"
             referencedColumns: ["id"]
           },
           {
@@ -233,8 +235,8 @@ export type Database = {
             foreignKeyName: "responses_form_id_fkey"
             columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
           },
         ]
       }
@@ -245,6 +247,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string | null
+          form_type: string | null
           id: string | null
           title: string | null
         }
@@ -252,6 +255,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          form_type?: string | null
           id?: string | null
           title?: string | null
         }
@@ -259,6 +263,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          form_type?: string | null
           id?: string | null
           title?: string | null
         }
@@ -266,8 +271,10 @@ export type Database = {
       }
       public_form_questions: {
         Row: {
+          custom_options: Json | null
           form_id: string | null
           id: string | null
+          is_required: boolean | null
           ordem: number | null
           question_text: string | null
           question_type: string | null
@@ -291,64 +298,8 @@ export type Database = {
             foreignKeyName: "questions_form_id_fkey"
             columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      public_forms: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          end_date: string | null
-          id: string | null
-          title: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          end_date?: string | null
-          id?: string | null
-          title?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          end_date?: string | null
-          id?: string | null
-          title?: string | null
-        }
-        Relationships: []
-      }
-      public_questions: {
-        Row: {
-          form_id: string | null
-          id: string | null
-          ordem: number | null
-          question_text: string | null
-          question_type: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "questions_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "questions_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_active_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "questions_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
           },
         ]
       }
@@ -359,29 +310,7 @@ export type Database = {
           resposta: string | null
           total_respostas: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_active_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "responses_form_id_fkey"
-            columns: ["form_id"]
-            isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       vw_form_responses_make: {
         Row: {
@@ -410,8 +339,8 @@ export type Database = {
             foreignKeyName: "responses_form_id_fkey"
             columns: ["form_id"]
             isOneToOne: false
-            referencedRelation: "public_forms"
-            referencedColumns: ["id"]
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
           },
         ]
       }
@@ -437,14 +366,7 @@ export type Database = {
       }
       get_form_responses: {
         Args: Record<PropertyKey, never> | { p_form_id: string }
-        Returns: {
-          answer: string
-          answer_id: string
-          form_id: string
-          form_title: string
-          question_text: string
-          response_id: string
-        }[]
+        Returns: Json
       }
       get_form_responses_json: {
         Args: Record<PropertyKey, never>
