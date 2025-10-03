@@ -56,20 +56,14 @@ const Dashboard = () => {
         return;
       }
 
-      // Calcular contagem de respostas COMPLETAS por formulário (1 resposta válida por pergunta)
+      // Calcular contagem de respostas VÁLIDAS por formulário (pelo menos uma resposta preenchida)
       const formsWithResponseCounts = (formsData || []).map((form: any) => {
-        const questionsCount = form.questions?.length || 0;
-        const completeCount = (form.responses || []).filter((resp: any) => {
+        const validCount = (form.responses || []).filter((resp: any) => {
           const answers = resp.response_answers || [];
-          const uniqueAnswered = new Set(
-            answers
-              .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
-              .map((a: any) => a.question_id)
-          );
-          return questionsCount > 0 && uniqueAnswered.size === questionsCount;
+          return answers.some((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '');
         }).length;
         // Manter formato esperado pelo restante do componente
-        return { ...form, responses: [{ count: completeCount }] };
+        return { ...form, responses: [{ count: validCount }] };
       });
 
       setForms(formsWithResponseCounts as any);

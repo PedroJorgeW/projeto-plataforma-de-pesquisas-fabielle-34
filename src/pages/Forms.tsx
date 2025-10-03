@@ -92,20 +92,14 @@ const Forms = () => {
         });
       } else {
         const formsWithCount = (data as any[]).map((form: any) => {
-          const questionsCount = form.questions?.length || 0;
-          const completeCount = (form.responses || []).filter((resp: any) => {
+          const validCount = (form.responses || []).filter((resp: any) => {
             const answers = resp.response_answers || [];
-            const uniqueAnswered = new Set(
-              answers
-                .filter((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '')
-                .map((a: any) => a.question_id)
-            );
-            return questionsCount > 0 && uniqueAnswered.size === questionsCount;
+            return answers.some((a: any) => a && a.question_id && typeof a.resposta !== 'undefined' && String(a.resposta).trim() !== '');
           }).length;
 
           return {
             ...form,
-            _count: { responses: completeCount }
+            _count: { responses: validCount }
           };
         });
         setForms(formsWithCount);
