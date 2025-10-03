@@ -8,6 +8,7 @@ interface Question {
   question_text: string;
   question_type: string;
   ordem: number | null;
+  is_required?: boolean;
 }
 
 interface UseFormSubmissionProps {
@@ -44,16 +45,12 @@ export const useFormSubmission = ({
         throw new Error('Nenhuma pergunta encontrada para este formulário');
       }
 
-      if (!answers || Object.keys(answers).length === 0) {
-        console.error('❌ ERRO: Nenhuma resposta fornecida!', { answers });
-        throw new Error('Nenhuma resposta foi fornecida');
-      }
-
-      // Validar se todas as perguntas foram respondidas
-      const missing = questions.filter(q => !answers[q.id]);
+      // Validar apenas perguntas obrigatórias
+      const requiredQuestions = questions.filter(q => q.is_required !== false);
+      const missing = requiredQuestions.filter(q => !answers[q.id]);
       if (missing.length > 0) {
-        console.error('❌ ERRO: Existem perguntas sem resposta!', { missingQuestions: missing.map(q => ({ id: q.id, text: q.question_text })) });
-        throw new Error('Por favor, responda todas as perguntas antes de enviar.');
+        console.error('❌ ERRO: Existem perguntas obrigatórias sem resposta!', { missingQuestions: missing.map(q => ({ id: q.id, text: q.question_text })) });
+        throw new Error('Responda todas as perguntas obrigatórias antes de enviar.');
       }
 
       // Validar formId atual do formulário

@@ -89,7 +89,17 @@ const PublicSurvey = () => {
         console.error('Error fetching questions:', questionsError);
         setQuestions([]);
       } else {
-        setQuestions(questionsData || []);
+        const mappedQuestions: Question[] = (questionsData || []).map((q: any) => ({
+          id: q.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          ordem: q.ordem ?? null,
+          is_required: q.is_required,
+          custom_options: Array.isArray(q.custom_options)
+            ? (q.custom_options as string[])
+            : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
+        }));
+        setQuestions(mappedQuestions);
       }
 
       setForm(formData);
