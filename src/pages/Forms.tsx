@@ -411,7 +411,7 @@ const Forms = () => {
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadAllResponses}>
             <Download className="h-4 w-4 mr-2" />
-            Baixar Todas as Respostas
+            Baixar Respostas
           </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
