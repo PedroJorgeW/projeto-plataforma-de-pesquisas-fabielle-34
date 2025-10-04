@@ -18,7 +18,8 @@ import {
   Calendar,
   Users,
   Loader2,
-  ClipboardList
+  ClipboardList,
+  Download
 } from "lucide-react";
 import {
   AlertDialog,
@@ -44,6 +45,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateFormDialog } from "@/components/CreateFormDialog";
 import { ViewFormDialog } from "@/components/ViewFormDialog";
+import * as XLSX from 'xlsx';
 
 interface Form {
   id: string;
@@ -267,6 +269,130 @@ const Forms = () => {
     return 'Ativo';
   };
 
+  const handleDownloadAllResponses = async () => {
+    try {
+      toast({
+        title: "Gerando arquivo",
+        description: "Aguarde enquanto preparamos os dados...",
+      });
+
+      // Buscar todos os formulários com suas respostas
+      const { data: allForms, error: formsError } = await supabase
+        .from('forms')
+        .select(`
+          id,
+          title,
+          form_type,
+          questions(
+            id,
+            question_text,
+            question_type,
+            custom_options
+          ),
+          responses(
+            id,
+            response_answers(
+              question_id,
+              resposta
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (formsError) throw formsError;
+
+      // Processar dados para agregação
+      const aggregatedData: any[] = [];
+
+      allForms?.forEach((form: any) => {
+        const formId = form.id;
+        const formTitle = form.title;
+        const formType = form.form_type === 'custom' ? 'Personalizado' : 'Padrão';
+
+        // Agrupar respostas por pergunta e resposta
+        const responseMap = new Map<string, Map<string, number>>();
+
+        form.questions?.forEach((question: any) => {
+          const questionKey = `${question.id}|${question.question_text}`;
+          responseMap.set(questionKey, new Map());
+        });
+
+        form.responses?.forEach((response: any) => {
+          response.response_answers?.forEach((answer: any) => {
+            const question = form.questions?.find((q: any) => q.id === answer.question_id);
+            if (question) {
+              const questionKey = `${question.id}|${question.question_text}`;
+              const answerText = answer.resposta || '';
+              
+              const answersMap = responseMap.get(questionKey);
+              if (answersMap) {
+                answersMap.set(answerText, (answersMap.get(answerText) || 0) + 1);
+              }
+            }
+          });
+        });
+
+        // Converter para formato de linhas do Excel
+        responseMap.forEach((answersMap, questionKey) => {
+          const [, questionText] = questionKey.split('|');
+          
+          answersMap.forEach((count, answerText) => {
+            aggregatedData.push({
+              'ID do Formulário': formId,
+              'Nome do Formulário': formTitle,
+              'Tipo de Formulário': formType,
+              'Pergunta': questionText,
+              'Resposta': answerText,
+              'Contagem de Respostas': count
+            });
+          });
+        });
+      });
+
+      if (aggregatedData.length === 0) {
+        toast({
+          title: "Sem dados",
+          description: "Não há respostas para exportar.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Criar planilha Excel
+      const worksheet = XLSX.utils.json_to_sheet(aggregatedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Respostas Agregadas');
+
+      // Ajustar largura das colunas
+      const maxWidth = 50;
+      const colWidths = [
+        { wch: 36 }, // ID do Formulário
+        { wch: 30 }, // Nome do Formulário
+        { wch: 20 }, // Tipo de Formulário
+        { wch: maxWidth }, // Pergunta
+        { wch: 30 }, // Resposta
+        { wch: 20 }  // Contagem
+      ];
+      worksheet['!cols'] = colWidths;
+
+      // Baixar arquivo
+      const timestamp = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `respostas_formularios_${timestamp}.xlsx`);
+
+      toast({
+        title: "Download concluído",
+        description: "O arquivo foi baixado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao gerar o arquivo Excel.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -282,10 +408,16 @@ const Forms = () => {
           <h1 className="text-3xl font-bold text-foreground">Formulários</h1>
           <p className="text-muted-foreground">Gerencie seus formulários de pesquisa</p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Criar Formulário
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDownloadAllResponses}>
+            <Download className="h-4 w-4 mr-2" />
+            Baixar Todas as Respostas
+          </Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Criar Formulário
+          </Button>
+        </div>
       </div>
 
       <Card>
