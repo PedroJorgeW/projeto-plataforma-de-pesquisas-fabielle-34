@@ -99,7 +99,7 @@ const Results = () => {
 
     setIsLoading(true);
     try {
-      // Buscar formulários com perguntas
+      // Buscar todos os formulários ativos (padrão e personalizado)
       const { data: formsData, error: formsError } = await supabase
         .from('forms')
         .select(`
@@ -211,11 +211,13 @@ const Results = () => {
 
         console.log(`📝 Pergunta "${question.question_text}" - ${questionAnswers.length} respostas:`, questionAnswers);
         
-        if (question.question_type === 'multiple_choice' && question.opcoes) {
+        // Processar multiple_choice (usa question.opcoes ou question.custom_options)
+        const options = question.opcoes || (question as any).custom_options;
+        if (question.question_type === 'multiple_choice' && options) {
           const optionCounts: { [key: string]: number } = {};
           
           // Inicializar contadores
-          question.opcoes.forEach((option: string) => {
+          options.forEach((option: string) => {
             optionCounts[option] = 0;
           });
           
