@@ -75,7 +75,7 @@ const getSatisfactionColor = (option: string) => {
   } else if (optionLower.includes('insatisfeito')) {
     return 'hsl(var(--unsatisfied))'; // Vermelho
   }
-  return 'hsl(0 0% 0%)'; // Preto para formulários personalizados
+  return 'hsl(var(--primary))'; // Azul para formulários personalizados
 };
 
 // Helper to format option labels (e.g., "muito_satisfeito" -> "Muito satisfeito")
