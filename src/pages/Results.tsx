@@ -515,7 +515,7 @@ const Results = () => {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-2xl font-bold text-primary">
-                    {formResults.questions.length}
+                    {formResults.questions.filter(q => q.responses.some(r => r.count > 0)).length}
                   </div>
                   <BarChart className="h-6 w-6 text-primary" />
                 </div>
