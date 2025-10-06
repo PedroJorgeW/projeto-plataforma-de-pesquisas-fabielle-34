@@ -298,20 +298,44 @@ const Results = () => {
     let generalData: { name: string; value: number; percentage: number; }[] = [];
 
     if (questionResults.length > 0) {
-      const aggregate: Record<string, number> = {};
-      questionResults.forEach(q => {
-        q.responses.forEach(r => {
-          const key = (r.option || 'Sem resposta').toString().toLowerCase();
-          aggregate[key] = (aggregate[key] || 0) + r.count;
+      // Para formulários personalizados, criar uma barra para cada resposta de cada questão
+      const formData = forms.find(f => f.id === form.id);
+      const isCustomForm = formData && (formData as any).form_type === 'personalizado';
+      
+      if (isCustomForm) {
+        // Cada resposta de cada questão vira uma barra separada
+        questionResults.forEach((q, qIndex) => {
+          q.responses.forEach(r => {
+            generalData.push({
+              name: `P${qIndex + 1}: ${formatOptionLabel(r.option)}`,
+              value: r.count,
+              percentage: 0 // Será calculado depois
+            });
+          });
         });
-      });
+        
+        const total = generalData.reduce((sum, item) => sum + item.value, 0);
+        generalData = generalData.map(item => ({
+          ...item,
+          percentage: total > 0 ? Math.round((item.value / total) * 100) : 0
+        }));
+      } else {
+        // Para formulários padrão (Likert), agregar por tipo de resposta
+        const aggregate: Record<string, number> = {};
+        questionResults.forEach(q => {
+          q.responses.forEach(r => {
+            const key = (r.option || 'Sem resposta').toString().toLowerCase();
+            aggregate[key] = (aggregate[key] || 0) + r.count;
+          });
+        });
 
-      const total = Object.values(aggregate).reduce((a, b) => a + b, 0);
-      generalData = Object.entries(aggregate).map(([key, count]) => ({
-        name: formatOptionLabel(key),
-        value: count,
-        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-      }));
+        const total = Object.values(aggregate).reduce((a, b) => a + b, 0);
+        generalData = Object.entries(aggregate).map(([key, count]) => ({
+          name: formatOptionLabel(key),
+          value: count,
+          percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+        }));
+      }
     }
 
     return {
