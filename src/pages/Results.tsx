@@ -304,10 +304,10 @@ const Results = () => {
       
       if (isCustomForm) {
         // Cada resposta de cada questão vira uma barra separada
-        questionResults.forEach((q) => {
+        questionResults.forEach((q, qIndex) => {
           q.responses.forEach(r => {
             generalData.push({
-              name: `${q.question}: ${formatOptionLabel(r.option)}`,
+              name: `Pergunta ${qIndex + 1}: ${formatOptionLabel(r.option)}`,
               value: r.count,
               percentage: 0 // Será calculado depois
             });
