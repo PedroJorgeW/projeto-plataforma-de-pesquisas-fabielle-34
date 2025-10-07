@@ -300,16 +300,14 @@ const Results = () => {
     if (questionResults.length > 0) {
       // Para formulários personalizados, criar uma barra para cada resposta de cada questão
       const formData = forms.find(f => f.id === form.id);
-      const isCustomForm = formData && (formData as any).form_type === 'personalizado';
+      const isCustomForm = formData && (formData as any).form_type === 'custom';
       
       if (isCustomForm) {
-        // Cada resposta de cada questão vira uma barra separada com índice único
-        let barIndex = 0;
+        // Cada resposta de cada questão vira uma barra separada
         questionResults.forEach((q) => {
           q.responses.forEach(r => {
-            // Adicionar um índice único para evitar agregação pelo Recharts
             generalData.push({
-              name: `${q.question}: ${formatOptionLabel(r.option)} [${barIndex++}]`,
+              name: `${q.question}: ${formatOptionLabel(r.option)}`,
               value: r.count,
               percentage: 0 // Será calculado depois
             });
