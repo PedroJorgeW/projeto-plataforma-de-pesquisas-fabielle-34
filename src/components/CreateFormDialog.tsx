@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +34,8 @@ interface CreateFormDialogProps {
 }
 
 export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: CreateFormDialogProps) => {
+  const STORAGE_KEY = 'create-form-draft';
+  
   const [formType, setFormType] = useState<"standard" | "custom">("standard");
   const [formData, setFormData] = useState({
     title: "",
@@ -46,6 +48,31 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Carregar rascunho do localStorage quando o componente montar
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(STORAGE_KEY);
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setFormType(draft.formType);
+        setFormData(draft.formData);
+        setQuestions(draft.questions);
+      } catch (error) {
+        console.error('Erro ao carregar rascunho:', error);
+      }
+    }
+  }, []);
+
+  // Salvar rascunho no localStorage sempre que houver mudanças
+  useEffect(() => {
+    const draft = {
+      formType,
+      formData,
+      questions
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }, [formType, formData, questions]);
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -110,6 +137,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       endDate: ""
     });
     setQuestions([{ id: "1", text: "", type: "text", isRequired: true, customOptions: [] }]);
+    // Limpar rascunho do localStorage
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleSave = async () => {
