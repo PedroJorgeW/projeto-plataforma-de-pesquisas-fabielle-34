@@ -20,6 +20,13 @@ interface Form {
   form_type?: string;
 }
 
+interface Theme {
+  id: string;
+  title: string;
+  description: string | null;
+  ordem: number;
+}
+
 interface Question {
   id: string;
   question_text: string;
@@ -27,6 +34,7 @@ interface Question {
   ordem: number | null;
   is_required?: boolean;
   custom_options?: string[] | null;
+  theme_id?: string | null;
 }
 
 const responseOptions = [
@@ -42,8 +50,10 @@ const PublicSurvey = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [form, setForm] = useState<Form | null>(null);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentThemeIndex, setCurrentThemeIndex] = useState<number | null>(null);
 
   const { submitFormResponse, isSubmitting } = useFormSubmission({
     formId: form?.id || "",
@@ -78,6 +88,20 @@ const PublicSurvey = () => {
         return;
       }
 
+      // Fetch themes
+      const { data: themesData, error: themesError } = await supabase
+        .from('form_themes')
+        .select('*')
+        .eq('form_id', id)
+        .order('ordem', { ascending: true });
+
+      if (themesError) {
+        console.error('Error fetching themes:', themesError);
+        setThemes([]);
+      } else {
+        setThemes(themesData || []);
+      }
+
       // Fetch questions using public-safe view
       const { data: questionsData, error: questionsError } = await supabase
         .from('public_form_questions')
@@ -95,6 +119,7 @@ const PublicSurvey = () => {
           question_type: q.question_type,
           ordem: q.ordem ?? null,
           is_required: q.is_required,
+          theme_id: q.theme_id,
           custom_options: Array.isArray(q.custom_options)
             ? (q.custom_options as string[])
             : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
@@ -167,7 +192,37 @@ const PublicSurvey = () => {
     }));
   };
 
+  // Organizar perguntas por tema
+  const questionsWithThemes = themes.length > 0 
+    ? themes.map(theme => ({
+        theme,
+        questions: questions.filter(q => q.theme_id === theme.id)
+      })).filter(group => group.questions.length > 0)
+    : [];
+  
+  const questionsWithoutTheme = questions.filter(q => !q.theme_id);
+  
+  // Criar estrutura de navegação: temas intercalados com perguntas
+  const navigationItems: Array<{ type: 'theme', theme: Theme } | { type: 'question', question: Question }> = [];
+  
+  if (themes.length > 0) {
+    questionsWithThemes.forEach(({ theme, questions: themeQuestions }) => {
+      navigationItems.push({ type: 'theme', theme });
+      themeQuestions.forEach(q => navigationItems.push({ type: 'question', question: q }));
+    });
+    questionsWithoutTheme.forEach(q => navigationItems.push({ type: 'question', question: q }));
+  } else {
+    questions.forEach(q => navigationItems.push({ type: 'question', question: q }));
+  }
+
   const handleNext = () => {
+    // Se estamos em um tema, apenas avança
+    if (currentThemeIndex !== null && navigationItems[currentQuestion]?.type === 'theme') {
+      setCurrentThemeIndex(null);
+      setCurrentQuestion(currentQuestion + 1);
+      return;
+    }
+
     const currentQ = questions[currentQuestion];
     const qId = currentQ?.id;
     
@@ -181,7 +236,11 @@ const PublicSurvey = () => {
       return;
     }
 
-    if (currentQuestion < questions.length - 1) {
+    if (currentQuestion < navigationItems.length - 1) {
+      const nextItem = navigationItems[currentQuestion + 1];
+      if (nextItem.type === 'theme') {
+        setCurrentThemeIndex(currentQuestion + 1);
+      }
       setCurrentQuestion(currentQuestion + 1);
     } else {
       handleSubmit();
@@ -190,6 +249,12 @@ const PublicSurvey = () => {
 
   const handlePrevious = () => {
     if (currentQuestion > 0) {
+      const prevItem = navigationItems[currentQuestion - 1];
+      if (prevItem.type === 'theme') {
+        setCurrentThemeIndex(currentQuestion - 1);
+      } else {
+        setCurrentThemeIndex(null);
+      }
       setCurrentQuestion(currentQuestion - 1);
     }
   };
@@ -220,9 +285,11 @@ const PublicSurvey = () => {
     await submitFormResponse(answers);
   };
 
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
-  const isLastQuestion = currentQuestion === questions.length - 1;
-  const currentQuestionData = questions[currentQuestion];
+  const progress = ((currentQuestion + 1) / navigationItems.length) * 100;
+  const isLastItem = currentQuestion === navigationItems.length - 1;
+  const currentItem = navigationItems[currentQuestion];
+  const currentQuestionData = currentItem?.type === 'question' ? currentItem.question : null;
+  const currentThemeData = currentItem?.type === 'theme' ? currentItem.theme : null;
   const currentQuestionId = currentQuestionData?.id;
   
   // Determine response options based on form type
@@ -259,30 +326,49 @@ const PublicSurvey = () => {
 
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>Pergunta {currentQuestion + 1} de {questions.length}</span>
+            <span>
+              {currentThemeData ? 'Tema' : `Pergunta ${questions.findIndex(q => q.id === currentQuestionId) + 1} de ${questions.length}`}
+            </span>
             <span>{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="w-full" />
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">
-                {currentQuestionData?.question_text}
-              </CardTitle>
-              {currentQuestionData?.is_required === false && (
-                <Badge variant="outline" className="ml-2">Opcional</Badge>
+        {currentThemeData ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">{currentThemeData.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {currentThemeData.description && (
+                <p className="text-lg text-muted-foreground">{currentThemeData.description}</p>
               )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <RadioGroup
-              value={answers[currentQuestionId] || ""}
-              onValueChange={handleAnswerChange}
-            >
-              {displayOptions.map((option, idx) => {
-                const isSelected = answers[currentQuestionId] === option.value;
+              <div className="flex justify-end">
+                <Button onClick={handleNext} size="lg">
+                  Continuar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : currentQuestionData ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  {currentQuestionData?.question_text}
+                </CardTitle>
+                {currentQuestionData?.is_required === false && (
+                  <Badge variant="outline" className="ml-2">Opcional</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <RadioGroup
+                value={answers[currentQuestionId || ''] || ""}
+                onValueChange={handleAnswerChange}
+              >
+                {displayOptions.map((option, idx) => {
+                  const isSelected = answers[currentQuestionId || ''] === option.value;
                 const isStandardForm = form?.form_type !== "custom";
                 
                 // Apply color coding only for standard forms
@@ -327,23 +413,24 @@ const PublicSurvey = () => {
               })}
             </RadioGroup>
 
-            <div className="flex justify-between gap-4 pt-4">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentQuestion === 0}
-              >
-                Anterior
-              </Button>
-              <Button
-                onClick={handleNext}
-                disabled={isSubmitting}
-              >
-                {isLastQuestion ? "Enviar Respostas" : "Próxima"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex justify-between gap-4 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={currentQuestion === 0}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  onClick={handleNext}
+                  disabled={isSubmitting}
+                >
+                  {isLastItem && !currentThemeData ? "Enviar Respostas" : "Próxima"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </div>
   );

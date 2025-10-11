@@ -38,6 +38,55 @@ export type Database = {
         }
         Relationships: []
       }
+      form_themes: {
+        Row: {
+          created_at: string
+          description: string | null
+          form_id: string
+          id: string
+          ordem: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          form_id: string
+          id?: string
+          ordem: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          form_id?: string
+          id?: string
+          ordem?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "public_active_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
+          },
+        ]
+      }
       forms: {
         Row: {
           admin_user_id: string
@@ -93,6 +142,7 @@ export type Database = {
           ordem: number | null
           question_text: string
           question_type: string
+          theme_id: string | null
         }
         Insert: {
           admin_user_id: string
@@ -104,6 +154,7 @@ export type Database = {
           ordem?: number | null
           question_text: string
           question_type?: string
+          theme_id?: string | null
         }
         Update: {
           admin_user_id?: string
@@ -115,6 +166,7 @@ export type Database = {
           ordem?: number | null
           question_text?: string
           question_type?: string
+          theme_id?: string | null
         }
         Relationships: [
           {
@@ -137,6 +189,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "response_counts"
             referencedColumns: ["form_id"]
+          },
+          {
+            foreignKeyName: "questions_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "form_themes"
+            referencedColumns: ["id"]
           },
         ]
       }

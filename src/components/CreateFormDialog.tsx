@@ -19,12 +19,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
+interface Theme {
+  id: string;
+  title: string;
+  description: string;
+}
+
 interface Question {
   id: string;
   text: string;
   type: string;
   isRequired: boolean;
   customOptions: string[];
+  themeId?: string;
 }
 
 interface CreateFormDialogProps {
@@ -42,6 +49,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     description: "",
     endDate: ""
   });
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [questions, setQuestions] = useState<Question[]>([
     { id: "1", text: "", type: "text", isRequired: true, customOptions: [] }
   ]);
@@ -57,6 +65,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         const draft = JSON.parse(savedDraft);
         setFormType(draft.formType);
         setFormData(draft.formData);
+        setThemes(draft.themes || []);
         setQuestions(draft.questions);
       } catch (error) {
         console.error('Erro ao carregar rascunho:', error);
@@ -69,10 +78,30 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     const draft = {
       formType,
       formData,
+      themes,
       questions
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, [formType, formData, questions]);
+  }, [formType, formData, themes, questions]);
+
+  const addTheme = () => {
+    const newTheme: Theme = {
+      id: Date.now().toString(),
+      title: "",
+      description: ""
+    };
+    setThemes([...themes, newTheme]);
+  };
+
+  const removeTheme = (id: string) => {
+    setThemes(themes.filter(t => t.id !== id));
+    // Remove theme from questions
+    setQuestions(questions.map(q => q.themeId === id ? { ...q, themeId: undefined } : q));
+  };
+
+  const updateTheme = (id: string, field: 'title' | 'description', value: string) => {
+    setThemes(themes.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -94,6 +123,12 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
   const updateQuestion = (id: string, text: string) => {
     setQuestions(questions.map(q => 
       q.id === id ? { ...q, text } : q
+    ));
+  };
+
+  const updateQuestionTheme = (id: string, themeId: string) => {
+    setQuestions(questions.map(q => 
+      q.id === id ? { ...q, themeId } : q
     ));
   };
 
@@ -136,6 +171,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       description: "",
       endDate: ""
     });
+    setThemes([]);
     setQuestions([{ id: "1", text: "", type: "text", isRequired: true, customOptions: [] }]);
     // Limpar rascunho do localStorage
     localStorage.removeItem(STORAGE_KEY);
@@ -254,6 +290,43 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         return;
       }
 
+      // Criar temas se houver
+      const themeIdMapping: Record<string, string> = {};
+      if (themes.length > 0) {
+        const validThemes = themes.filter(t => t.title.trim());
+        if (validThemes.length > 0) {
+          const themesToInsert = validThemes.map((theme, index) => ({
+            form_id: form.id,
+            title: theme.title.trim(),
+            description: theme.description.trim() || null,
+            ordem: index + 1
+          }));
+
+          const { data: createdThemes, error: themesError } = await supabase
+            .from('form_themes')
+            .insert(themesToInsert)
+            .select();
+
+          if (themesError) {
+            console.error('Error creating themes:', themesError);
+            await supabase.from('forms').delete().eq('id', form.id);
+            toast({
+              title: "Erro",
+              description: `Falha ao criar temas: ${themesError.message}`,
+              variant: "destructive"
+            });
+            return;
+          }
+
+          // Mapear IDs temporários para IDs reais
+          validThemes.forEach((theme, index) => {
+            if (createdThemes && createdThemes[index]) {
+              themeIdMapping[theme.id] = createdThemes[index].id;
+            }
+          });
+        }
+      }
+
       console.log('❓ Preparando perguntas para inserir:', validQuestions);
       console.log('👤 User ID:', user.id);
       console.log('👤 Admin User ID:', adminUser.id);
@@ -276,7 +349,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         ordem: index + 1,
         admin_user_id: adminUser.id,
         is_required: question.isRequired,
-        custom_options: formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null
+        custom_options: formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null,
+        theme_id: question.themeId ? themeIdMapping[question.themeId] : null
       }));
 
       console.log('❓ Perguntas para inserir (estrutura completa):', JSON.stringify(questionsToInsert, null, 2));
@@ -428,10 +502,83 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
             </CardContent>
           </Card>
 
+          {themes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Temas</CardTitle>
+                  <Button onClick={addTheme} variant="outline" size="sm" disabled={isLoading}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Tema
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {themes.map((theme, index) => (
+                  <div key={theme.id} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor={`theme-title-${theme.id}`}>
+                            Tema {index + 1}
+                          </Label>
+                          {themes.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeTheme(theme.id)}
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <Input
+                          id={`theme-title-${theme.id}`}
+                          value={theme.title}
+                          onChange={(e) => updateTheme(theme.id, 'title', e.target.value)}
+                          placeholder="Ex: Liderança"
+                          disabled={isLoading}
+                        />
+                        <div>
+                          <Label htmlFor={`theme-desc-${theme.id}`}>Descrição</Label>
+                          <Textarea
+                            id={`theme-desc-${theme.id}`}
+                            value={theme.description}
+                            onChange={(e) => updateTheme(theme.id, 'description', e.target.value)}
+                            placeholder="Descreva o tema..."
+                            rows={2}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Perguntas</CardTitle>
+                <div className="space-y-1">
+                  <CardTitle>Perguntas</CardTitle>
+                  {themes.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={addTheme}
+                        disabled={isLoading}
+                        className="h-auto p-0"
+                      >
+                        Adicionar Temas
+                      </Button>{" "}
+                      para organizar as perguntas
+                    </p>
+                  )}
+                </div>
                 <Button onClick={addQuestion} variant="outline" size="sm" disabled={isLoading}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Pergunta
@@ -459,6 +606,27 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                           </Label>
                         </div>
                       </div>
+                      
+                      {themes.length > 0 && (
+                        <div>
+                          <Label htmlFor={`theme-${question.id}`} className="text-sm">Tema (opcional)</Label>
+                          <select
+                            id={`theme-${question.id}`}
+                            value={question.themeId || ""}
+                            onChange={(e) => updateQuestionTheme(question.id, e.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            disabled={isLoading}
+                          >
+                            <option value="">Sem tema</option>
+                            {themes.map(theme => (
+                              <option key={theme.id} value={theme.id}>
+                                {theme.title || `Tema sem nome`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <Textarea
                         id={`question-${question.id}`}
                         value={question.text}
