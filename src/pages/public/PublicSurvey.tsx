@@ -192,55 +192,47 @@ const PublicSurvey = () => {
     }));
   };
 
-  // Organizar perguntas por tema
-  const questionsWithThemes = themes.length > 0 
-    ? themes.map(theme => ({
-        theme,
-        questions: questions.filter(q => q.theme_id === theme.id)
-      })).filter(group => group.questions.length > 0)
-    : [];
+  // Criar estrutura de navegação combinando temas e perguntas por ordem
+  const navigationItems: Array<{ type: 'theme', data: Theme, ordem: number } | { type: 'question', data: Question, ordem: number }> = [];
   
-  const questionsWithoutTheme = questions.filter(q => !q.theme_id);
+  themes.forEach(theme => {
+    navigationItems.push({ type: 'theme', data: theme, ordem: theme.ordem });
+  });
   
-  // Criar estrutura de navegação: temas intercalados com perguntas
-  const navigationItems: Array<{ type: 'theme', theme: Theme } | { type: 'question', question: Question }> = [];
+  questions.forEach(q => {
+    navigationItems.push({ type: 'question', data: q, ordem: q.ordem || 0 });
+  });
   
-  if (themes.length > 0) {
-    questionsWithThemes.forEach(({ theme, questions: themeQuestions }) => {
-      navigationItems.push({ type: 'theme', theme });
-      themeQuestions.forEach(q => navigationItems.push({ type: 'question', question: q }));
-    });
-    questionsWithoutTheme.forEach(q => navigationItems.push({ type: 'question', question: q }));
-  } else {
-    questions.forEach(q => navigationItems.push({ type: 'question', question: q }));
-  }
+  // Ordenar por ordem
+  navigationItems.sort((a, b) => a.ordem - b.ordem);
 
   const handleNext = () => {
+    const currentItem = navigationItems[currentQuestion];
+    
     // Se estamos em um tema, apenas avança
-    if (currentThemeIndex !== null && navigationItems[currentQuestion]?.type === 'theme') {
-      setCurrentThemeIndex(null);
-      setCurrentQuestion(currentQuestion + 1);
+    if (currentItem?.type === 'theme') {
+      if (currentQuestion < navigationItems.length - 1) {
+        setCurrentQuestion(currentQuestion + 1);
+      }
       return;
     }
 
-    const currentQ = questions[currentQuestion];
-    const qId = currentQ?.id;
-    
-    // Only validate if question is required
-    if (qId && currentQ?.is_required !== false && !answers[qId]) {
-      toast({
-        title: "Resposta obrigatória",
-        description: "Por favor, selecione uma resposta para continuar.",
-        variant: "destructive",
-      });
-      return;
+    // Se é uma pergunta, validar
+    if (currentItem?.type === 'question') {
+      const currentQ = currentItem.data;
+      const qId = currentQ?.id;
+      
+      if (qId && currentQ?.is_required !== false && !answers[qId]) {
+        toast({
+          title: "Resposta obrigatória",
+          description: "Por favor, selecione uma resposta para continuar.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (currentQuestion < navigationItems.length - 1) {
-      const nextItem = navigationItems[currentQuestion + 1];
-      if (nextItem.type === 'theme') {
-        setCurrentThemeIndex(currentQuestion + 1);
-      }
       setCurrentQuestion(currentQuestion + 1);
     } else {
       handleSubmit();
@@ -249,12 +241,6 @@ const PublicSurvey = () => {
 
   const handlePrevious = () => {
     if (currentQuestion > 0) {
-      const prevItem = navigationItems[currentQuestion - 1];
-      if (prevItem.type === 'theme') {
-        setCurrentThemeIndex(currentQuestion - 1);
-      } else {
-        setCurrentThemeIndex(null);
-      }
       setCurrentQuestion(currentQuestion - 1);
     }
   };
@@ -288,9 +274,12 @@ const PublicSurvey = () => {
   const progress = ((currentQuestion + 1) / navigationItems.length) * 100;
   const isLastItem = currentQuestion === navigationItems.length - 1;
   const currentItem = navigationItems[currentQuestion];
-  const currentQuestionData = currentItem?.type === 'question' ? currentItem.question : null;
-  const currentThemeData = currentItem?.type === 'theme' ? currentItem.theme : null;
+  const currentQuestionData = currentItem?.type === 'question' ? currentItem.data : null;
+  const currentThemeData = currentItem?.type === 'theme' ? currentItem.data : null;
   const currentQuestionId = currentQuestionData?.id;
+  
+  const totalQuestions = questions.length;
+  const currentQuestionNumber = currentQuestionData ? questions.findIndex(q => q.id === currentQuestionId) + 1 : 0;
   
   // Determine response options based on form type
   const getResponseOptions = () => {
@@ -327,7 +316,7 @@ const PublicSurvey = () => {
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
             <span>
-              {currentThemeData ? 'Tema' : `Pergunta ${questions.findIndex(q => q.id === currentQuestionId) + 1} de ${questions.length}`}
+              {currentThemeData ? 'Tema' : `Pergunta ${currentQuestionNumber} de ${totalQuestions}`}
             </span>
             <span>{Math.round(progress)}%</span>
           </div>

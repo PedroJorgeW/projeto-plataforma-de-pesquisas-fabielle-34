@@ -19,19 +19,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
-interface Theme {
+interface FormItem {
   id: string;
+  type: 'theme' | 'question';
+  ordem: number;
+}
+
+interface Theme extends FormItem {
+  type: 'theme';
   title: string;
   description: string;
 }
 
-interface Question {
-  id: string;
+interface Question extends FormItem {
+  type: 'question';
   text: string;
-  type: string;
+  questionType: string;
   isRequired: boolean;
   customOptions: string[];
-  themeId?: string;
 }
 
 interface CreateFormDialogProps {
@@ -49,10 +54,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     description: "",
     endDate: ""
   });
-  const [themes, setThemes] = useState<Theme[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([
-    { id: "1", text: "", type: "text", isRequired: true, customOptions: [] }
-  ]);
+  const [items, setItems] = useState<(Theme | Question)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -65,8 +67,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         const draft = JSON.parse(savedDraft);
         setFormType(draft.formType);
         setFormData(draft.formData);
-        setThemes(draft.themes || []);
-        setQuestions(draft.questions);
+        setItems(draft.items || []);
       } catch (error) {
         console.error('Erro ao carregar rascunho:', error);
       }
@@ -78,89 +79,100 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     const draft = {
       formType,
       formData,
-      themes,
-      questions
+      items
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, [formType, formData, themes, questions]);
+  }, [formType, formData, items]);
 
   const addTheme = () => {
     const newTheme: Theme = {
       id: Date.now().toString(),
+      type: 'theme',
+      ordem: items.length,
       title: "",
       description: ""
     };
-    setThemes([...themes, newTheme]);
-  };
-
-  const removeTheme = (id: string) => {
-    setThemes(themes.filter(t => t.id !== id));
-    // Remove theme from questions
-    setQuestions(questions.map(q => q.themeId === id ? { ...q, themeId: undefined } : q));
-  };
-
-  const updateTheme = (id: string, field: 'title' | 'description', value: string) => {
-    setThemes(themes.map(t => t.id === id ? { ...t, [field]: value } : t));
+    setItems([...items, newTheme]);
   };
 
   const addQuestion = () => {
     const newQuestion: Question = {
       id: Date.now().toString(),
+      type: 'question',
+      ordem: items.length,
       text: "",
-      type: "text",
+      questionType: "text",
       isRequired: true,
       customOptions: formType === "custom" ? [""] : []
     };
-    setQuestions([...questions, newQuestion]);
+    setItems([...items, newQuestion]);
   };
 
-  const removeQuestion = (id: string) => {
-    if (questions.length > 1) {
-      setQuestions(questions.filter(q => q.id !== id));
+  const removeItem = (id: string) => {
+    setItems(items.filter(item => item.id !== id).map((item, index) => ({ ...item, ordem: index })));
+  };
+
+  const moveItemUp = (id: string) => {
+    const index = items.findIndex(item => item.id === id);
+    if (index > 0) {
+      const newItems = [...items];
+      [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+      setItems(newItems.map((item, idx) => ({ ...item, ordem: idx })));
     }
   };
 
-  const updateQuestion = (id: string, text: string) => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, text } : q
+  const moveItemDown = (id: string) => {
+    const index = items.findIndex(item => item.id === id);
+    if (index < items.length - 1) {
+      const newItems = [...items];
+      [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+      setItems(newItems.map((item, idx) => ({ ...item, ordem: idx })));
+    }
+  };
+
+  const updateTheme = (id: string, field: 'title' | 'description', value: string) => {
+    setItems(items.map(item => 
+      item.id === id && item.type === 'theme' ? { ...item, [field]: value } : item
     ));
   };
 
-  const updateQuestionTheme = (id: string, themeId: string) => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, themeId } : q
+  const updateQuestion = (id: string, text: string) => {
+    setItems(items.map(item => 
+      item.id === id && item.type === 'question' ? { ...item, text } : item
     ));
   };
 
   const toggleRequired = (id: string) => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, isRequired: !q.isRequired } : q
+    setItems(items.map(item => 
+      item.id === id && item.type === 'question' ? { ...item, isRequired: !item.isRequired } : item
     ));
   };
 
   const addCustomOption = (questionId: string) => {
-    setQuestions(questions.map(q => 
-      q.id === questionId ? { ...q, customOptions: [...q.customOptions, ""] } : q
+    setItems(items.map(item => 
+      item.id === questionId && item.type === 'question' 
+        ? { ...item, customOptions: [...item.customOptions, ""] } 
+        : item
     ));
   };
 
   const updateCustomOption = (questionId: string, optionIndex: number, value: string) => {
-    setQuestions(questions.map(q => {
-      if (q.id === questionId) {
-        const newOptions = [...q.customOptions];
+    setItems(items.map(item => {
+      if (item.id === questionId && item.type === 'question') {
+        const newOptions = [...item.customOptions];
         newOptions[optionIndex] = value;
-        return { ...q, customOptions: newOptions };
+        return { ...item, customOptions: newOptions };
       }
-      return q;
+      return item;
     }));
   };
 
   const removeCustomOption = (questionId: string, optionIndex: number) => {
-    setQuestions(questions.map(q => {
-      if (q.id === questionId && q.customOptions.length > 1) {
-        return { ...q, customOptions: q.customOptions.filter((_, i) => i !== optionIndex) };
+    setItems(items.map(item => {
+      if (item.id === questionId && item.type === 'question' && item.customOptions.length > 1) {
+        return { ...item, customOptions: item.customOptions.filter((_, i) => i !== optionIndex) };
       }
-      return q;
+      return item;
     }));
   };
 
@@ -171,9 +183,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       description: "",
       endDate: ""
     });
-    setThemes([]);
-    setQuestions([{ id: "1", text: "", type: "text", isRequired: true, customOptions: [] }]);
-    // Limpar rascunho do localStorage
+    setItems([]);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -189,6 +199,9 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       return;
     }
 
+    const questions = items.filter((item): item is Question => item.type === 'question');
+    const themes = items.filter((item): item is Theme => item.type === 'theme');
+    
     const validQuestions = questions.filter(q => q.text.trim());
     console.log('📝 Perguntas válidas:', validQuestions);
     
@@ -291,21 +304,19 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       }
 
       // Criar temas se houver
-      const themeIdMapping: Record<string, string> = {};
       if (themes.length > 0) {
         const validThemes = themes.filter(t => t.title.trim());
         if (validThemes.length > 0) {
-          const themesToInsert = validThemes.map((theme, index) => ({
+          const themesToInsert = validThemes.map(theme => ({
             form_id: form.id,
             title: theme.title.trim(),
             description: theme.description.trim() || null,
-            ordem: index + 1
+            ordem: theme.ordem + 1
           }));
 
-          const { data: createdThemes, error: themesError } = await supabase
+          const { error: themesError } = await supabase
             .from('form_themes')
-            .insert(themesToInsert)
-            .select();
+            .insert(themesToInsert);
 
           if (themesError) {
             console.error('Error creating themes:', themesError);
@@ -317,13 +328,6 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
             });
             return;
           }
-
-          // Mapear IDs temporários para IDs reais
-          validThemes.forEach((theme, index) => {
-            if (createdThemes && createdThemes[index]) {
-              themeIdMapping[theme.id] = createdThemes[index].id;
-            }
-          });
         }
       }
 
@@ -342,15 +346,14 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       });
       
       // Create questions
-      const questionsToInsert = validQuestions.map((question, index) => ({
+      const questionsToInsert = validQuestions.map(question => ({
         form_id: form.id,
         question_text: question.text.trim(),
-        question_type: question.type,
-        ordem: index + 1,
+        question_type: question.questionType,
+        ordem: question.ordem + 1,
         admin_user_id: adminUser.id,
         is_required: question.isRequired,
-        custom_options: formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null,
-        theme_id: question.themeId ? themeIdMapping[question.themeId] : null
+        custom_options: formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null
       }));
 
       console.log('❓ Perguntas para inserir (estrutura completa):', JSON.stringify(questionsToInsert, null, 2));
@@ -502,202 +505,184 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
             </CardContent>
           </Card>
 
-          {themes.length > 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Temas</CardTitle>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Conteúdo do Formulário</CardTitle>
+                <div className="flex gap-2">
                   <Button onClick={addTheme} variant="outline" size="sm" disabled={isLoading}>
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Tema
                   </Button>
+                  <Button onClick={addQuestion} variant="outline" size="sm" disabled={isLoading}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Pergunta
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {themes.map((theme, index) => (
-                  <div key={theme.id} className="p-4 border rounded-lg space-y-3">
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {items.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Adicione temas e perguntas para criar seu formulário
+                </p>
+              )}
+              {items.map((item, index) => (
+                <div key={item.id} className="p-4 border rounded-lg space-y-3">
+                  {item.type === 'theme' ? (
                     <div className="flex items-start gap-3">
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center justify-between">
-                          <Label htmlFor={`theme-title-${theme.id}`}>
-                            Tema {index + 1}
-                          </Label>
-                          {themes.length > 1 && (
+                          <Badge variant="secondary">Tema {index + 1}</Badge>
+                          <div className="flex gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeTheme(theme.id)}
+                              onClick={() => moveItemUp(item.id)}
+                              disabled={index === 0 || isLoading}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveItemDown(item.id)}
+                              disabled={index === items.length - 1 || isLoading}
+                            >
+                              ↓
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeItem(item.id)}
                               disabled={isLoading}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
+                          </div>
                         </div>
                         <Input
-                          id={`theme-title-${theme.id}`}
-                          value={theme.title}
-                          onChange={(e) => updateTheme(theme.id, 'title', e.target.value)}
-                          placeholder="Ex: Liderança"
+                          value={item.title}
+                          onChange={(e) => updateTheme(item.id, 'title', e.target.value)}
+                          placeholder="Título do Tema (ex: Liderança)"
                           disabled={isLoading}
                         />
-                        <div>
-                          <Label htmlFor={`theme-desc-${theme.id}`}>Descrição</Label>
-                          <Textarea
-                            id={`theme-desc-${theme.id}`}
-                            value={theme.description}
-                            onChange={(e) => updateTheme(theme.id, 'description', e.target.value)}
-                            placeholder="Descreva o tema..."
-                            rows={2}
-                            disabled={isLoading}
-                          />
-                        </div>
+                        <Textarea
+                          value={item.description}
+                          onChange={(e) => updateTheme(item.id, 'description', e.target.value)}
+                          placeholder="Descrição do tema..."
+                          rows={2}
+                          disabled={isLoading}
+                        />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle>Perguntas</CardTitle>
-                  {themes.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={addTheme}
-                        disabled={isLoading}
-                        className="h-auto p-0"
-                      >
-                        Adicionar Temas
-                      </Button>{" "}
-                      para organizar as perguntas
-                    </p>
-                  )}
-                </div>
-                <Button onClick={addQuestion} variant="outline" size="sm" disabled={isLoading}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Pergunta
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {questions.map((question, index) => (
-                <div key={question.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor={`question-${question.id}`}>
-                          Pergunta {index + 1}
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id={`required-${question.id}`}
-                            checked={question.isRequired}
-                            onCheckedChange={() => toggleRequired(question.id)}
-                            disabled={isLoading}
-                          />
-                          <Label htmlFor={`required-${question.id}`} className="text-sm font-normal cursor-pointer">
-                            Obrigatória
-                          </Label>
-                        </div>
-                      </div>
-                      
-                      {themes.length > 0 && (
-                        <div>
-                          <Label htmlFor={`theme-${question.id}`} className="text-sm">Tema (opcional)</Label>
-                          <select
-                            id={`theme-${question.id}`}
-                            value={question.themeId || ""}
-                            onChange={(e) => updateQuestionTheme(question.id, e.target.value)}
-                            className="w-full p-2 border rounded-md"
-                            disabled={isLoading}
-                          >
-                            <option value="">Sem tema</option>
-                            {themes.map(theme => (
-                              <option key={theme.id} value={theme.id}>
-                                {theme.title || `Tema sem nome`}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      <Textarea
-                        id={`question-${question.id}`}
-                        value={question.text}
-                        onChange={(e) => updateQuestion(question.id, e.target.value)}
-                        placeholder="Digite sua pergunta..."
-                        rows={2}
-                        disabled={isLoading}
-                      />
-
-                      {formType === "custom" && (
-                        <div className="space-y-2 pl-4 border-l-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">Opções de Resposta</Label>
-                            <Button
-                              onClick={() => addCustomOption(question.id)}
-                              variant="ghost"
-                              size="sm"
-                              disabled={isLoading}
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Adicionar Opção
-                            </Button>
-                          </div>
-                          {question.customOptions.map((option, optIndex) => (
-                            <div key={optIndex} className="flex items-center gap-2">
-                              <Badge variant="outline" className="px-2">
-                                {optIndex + 1}
-                              </Badge>
-                              <Input
-                                value={option}
-                                onChange={(e) => updateCustomOption(question.id, optIndex, e.target.value)}
-                                placeholder={`Opção ${optIndex + 1}`}
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="default">Pergunta {index + 1}</Badge>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`required-${item.id}`}
+                                checked={item.isRequired}
+                                onCheckedChange={() => toggleRequired(item.id)}
                                 disabled={isLoading}
                               />
-                              {question.customOptions.length > 1 && (
-                                <Button
-                                  onClick={() => removeCustomOption(question.id, optIndex)}
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={isLoading}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Label htmlFor={`required-${item.id}`} className="text-sm font-normal cursor-pointer">
+                                Obrigatória
+                              </Label>
                             </div>
-                          ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveItemUp(item.id)}
+                              disabled={index === 0 || isLoading}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveItemDown(item.id)}
+                              disabled={index === items.length - 1 || isLoading}
+                            >
+                              ↓
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeItem(item.id)}
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
+                        
+                        <Textarea
+                          value={item.text}
+                          onChange={(e) => updateQuestion(item.id, e.target.value)}
+                          placeholder="Digite sua pergunta..."
+                          rows={2}
+                          disabled={isLoading}
+                        />
 
-                      {formType === "standard" && (
-                        <div className="text-sm text-muted-foreground pl-4 border-l-2">
-                          <p className="font-medium mb-1">Opções de Resposta (fixas):</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            <li>Muito Satisfeito</li>
-                            <li>Satisfeito</li>
-                            <li>Insatisfeito</li>
-                          </ul>
-                        </div>
-                      )}
+                        {formType === "custom" && (
+                          <div className="space-y-2 pl-4 border-l-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm">Opções de Resposta</Label>
+                              <Button
+                                onClick={() => addCustomOption(item.id)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={isLoading}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Adicionar Opção
+                              </Button>
+                            </div>
+                            {item.customOptions.map((option, optIndex) => (
+                              <div key={optIndex} className="flex items-center gap-2">
+                                <Badge variant="outline" className="px-2">
+                                  {optIndex + 1}
+                                </Badge>
+                                <Input
+                                  value={option}
+                                  onChange={(e) => updateCustomOption(item.id, optIndex, e.target.value)}
+                                  placeholder={`Opção ${optIndex + 1}`}
+                                  disabled={isLoading}
+                                />
+                                {item.customOptions.length > 1 && (
+                                  <Button
+                                    onClick={() => removeCustomOption(item.id, optIndex)}
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={isLoading}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {formType === "standard" && (
+                          <div className="text-sm text-muted-foreground pl-4 border-l-2">
+                            <p className="font-medium mb-1">Opções de Resposta (fixas):</p>
+                            <ul className="list-disc list-inside space-y-1">
+                              <li>Muito Satisfeito</li>
+                              <li>Satisfeito</li>
+                              <li>Insatisfeito</li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {questions.length > 1 && (
-                      <Button
-                        onClick={() => removeQuestion(question.id)}
-                        variant="ghost"
-                        size="sm"
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  )}
                 </div>
               ))}
             </CardContent>
