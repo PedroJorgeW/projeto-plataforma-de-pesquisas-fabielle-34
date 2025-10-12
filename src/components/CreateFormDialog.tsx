@@ -533,7 +533,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                     <div className="flex items-start gap-3">
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center justify-between">
-                          <Badge variant="secondary">Tema {index + 1}</Badge>
+                          <Badge variant="secondary">Tema</Badge>
                           <div className="flex gap-1">
                             <Button
                               variant="ghost"
@@ -581,7 +581,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Badge variant="default">Pergunta {index + 1}</Badge>
+                            <Badge variant="default">Pergunta {items.filter(i => i.type === 'question').slice(0, items.filter(i => i.type === 'question').indexOf(item) + 1).length}</Badge>
                             <div className="flex items-center gap-2">
                               <Checkbox
                                 id={`required-${item.id}`}
