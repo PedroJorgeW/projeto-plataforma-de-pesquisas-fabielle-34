@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
+import ThemePage from "@/components/ThemePage";
 
 interface Form {
   id: string;
@@ -294,6 +295,33 @@ const PublicSurvey = () => {
 
   const displayOptions = getResponseOptions();
 
+  // Se o item atual é um tema, renderizar a página de tema
+  if (currentThemeData) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ThemePage 
+          title={currentThemeData.title} 
+          description={currentThemeData.description || ""} 
+        />
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
+          <div className="container mx-auto max-w-2xl flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentQuestion === 0}
+            >
+              Anterior
+            </Button>
+            <Button onClick={handleNext}>
+              Próxima
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se chegou aqui, é uma pergunta
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="container mx-auto max-w-2xl">
@@ -315,31 +343,13 @@ const PublicSurvey = () => {
 
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
-            <span>
-              {currentThemeData ? 'Tema' : `Pergunta ${currentQuestionNumber} de ${totalQuestions}`}
-            </span>
+            <span>Pergunta {currentQuestionNumber} de {totalQuestions}</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="w-full" />
         </div>
 
-        {currentThemeData ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">{currentThemeData.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {currentThemeData.description && (
-                <p className="text-lg text-muted-foreground">{currentThemeData.description}</p>
-              )}
-              <div className="flex justify-end">
-                <Button onClick={handleNext} size="lg">
-                  Continuar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : currentQuestionData ? (
+        {currentQuestionData ? (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -414,7 +424,7 @@ const PublicSurvey = () => {
                   onClick={handleNext}
                   disabled={isSubmitting}
                 >
-                  {isLastItem && !currentThemeData ? "Enviar Respostas" : "Próxima"}
+                  {isLastItem ? "Enviar Respostas" : "Próxima"}
                 </Button>
               </div>
             </CardContent>
