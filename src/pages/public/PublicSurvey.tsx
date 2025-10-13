@@ -259,8 +259,11 @@ const PublicSurvey = () => {
     // Validação final: apenas perguntas obrigatórias devem estar respondidas
     const missing = questions.filter(q => q.is_required !== false && !answers[q.id]);
     if (missing.length > 0) {
-      const firstMissingIndex = questions.findIndex(q => q.is_required !== false && !answers[q.id]);
-      if (firstMissingIndex >= 0) setCurrentQuestion(firstMissingIndex);
+      const firstMissingQuestionId = missing[0].id;
+      const navIndex = navigationItems.findIndex(
+        (i) => i.type === 'question' && i.data.id === firstMissingQuestionId
+      );
+      if (navIndex >= 0) setCurrentQuestion(navIndex);
       toast({
         title: "Respostas obrigatórias",
         description: "Responda todas as perguntas obrigatórias antes de enviar.",
