@@ -19,11 +19,6 @@ const Home = () => {
           
           <div className="space-y-4">
             
-            <div>
-              <Link to="/tema">
-                <Button size="sm">Exemplo de Página de Tema</Button>
-              </Link>
-            </div>
             
             <div className="pt-4">
               <Link to="/admin/login">
