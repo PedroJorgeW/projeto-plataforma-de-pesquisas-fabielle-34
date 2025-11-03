@@ -169,14 +169,14 @@ const PublicSurvey = () => {
   // and within date range - no need to check status or expiration
 
 
-  if (questions.length === 0) {
+  if (questions.length === 0 && themes.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Nenhuma pergunta encontrada</h2>
+            <h2 className="text-xl font-semibold mb-2">Nenhum conteúdo encontrado</h2>
             <p className="text-muted-foreground">
-              Esta pesquisa ainda não possui perguntas cadastradas.
+              Esta pesquisa ainda não possui temas ou perguntas cadastradas.
             </p>
           </CardContent>
         </Card>
@@ -201,7 +201,7 @@ const PublicSurvey = () => {
   });
   
   questions.forEach(q => {
-    navigationItems.push({ type: 'question', data: q, ordem: q.ordem || 0 });
+    navigationItems.push({ type: 'question', data: q, ordem: (q.ordem ?? 999999) });
   });
   
   // Ordenar por ordem
