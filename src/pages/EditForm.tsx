@@ -22,6 +22,16 @@ interface Question {
   form_id: string;
   is_required: boolean;
   custom_options: string[] | null;
+  theme_id?: string | null;
+  isNew?: boolean;
+}
+
+interface Theme {
+  id: string;
+  title: string;
+  description: string | null;
+  ordem: number;
+  form_id: string;
   isNew?: boolean;
 }
 
@@ -40,6 +50,7 @@ const EditForm = () => {
   });
   
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
@@ -73,6 +84,17 @@ const EditForm = () => {
         return;
       }
 
+      // Load themes
+      const { data: themesData, error: themesError } = await supabase
+        .from('form_themes')
+        .select('*')
+        .eq('form_id', id)
+        .order('ordem', { ascending: true });
+
+      if (themesError) {
+        console.error('Error loading themes:', themesError);
+      }
+
       // Load questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
@@ -100,6 +122,12 @@ const EditForm = () => {
 
       setFormData(loadedFormData);
       
+      // Map themes
+      const mappedThemes: Theme[] = (themesData || []).map((t: any) => ({
+        ...t
+      }));
+      setThemes(mappedThemes);
+      
       // Map questions to include new fields with defaults
       const mappedQuestions: Question[] = (questionsData || []).map((q: any) => ({
         ...q,
@@ -112,6 +140,7 @@ const EditForm = () => {
       // Store original data for comparison
       setOriginalData({
         form: loadedFormData,
+        themes: themesData || [],
         questions: questionsData || []
       });
 
@@ -128,12 +157,34 @@ const EditForm = () => {
     }
   };
 
+  const addTheme = () => {
+    const newTheme: Theme = {
+      id: `new_theme_${Date.now()}`,
+      title: "",
+      description: null,
+      ordem: themes.length + questions.length + 1,
+      form_id: id!,
+      isNew: true
+    };
+    setThemes([...themes, newTheme]);
+  };
+
+  const removeTheme = (themeId: string) => {
+    setThemes(themes.filter(t => t.id !== themeId));
+  };
+
+  const updateTheme = (themeId: string, field: 'title' | 'description', value: string) => {
+    setThemes(themes.map(t => 
+      t.id === themeId ? { ...t, [field]: value } : t
+    ));
+  };
+
   const addQuestion = () => {
     const newQuestion: Question = {
       id: `new_${Date.now()}`,
       question_text: "",
       question_type: "text",
-      ordem: questions.length + 1,
+      ordem: themes.length + questions.length + 1,
       form_id: id!,
       is_required: true,
       custom_options: formData.form_type === "custom" ? [""] : null,
@@ -231,6 +282,66 @@ const EditForm = () => {
           variant: "destructive"
         });
         return;
+      }
+
+      // Handle themes updates
+      const existingThemes = themes.filter(t => !t.isNew);
+      const newThemes = themes.filter(t => t.isNew);
+
+      // Delete themes that were removed
+      const originalThemeIds = originalData?.themes?.map((t: Theme) => t.id) || [];
+      const currentThemeIds = existingThemes.map(t => t.id);
+      const deletedThemeIds = originalThemeIds.filter((id: string) => !currentThemeIds.includes(id));
+
+      if (deletedThemeIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('form_themes')
+          .delete()
+          .in('id', deletedThemeIds);
+
+        if (deleteError) {
+          console.error('Error deleting themes:', deleteError);
+        }
+      }
+
+      // Update existing themes
+      for (const theme of existingThemes) {
+        if (theme.title.trim()) {
+          const { error: updateError } = await supabase
+            .from('form_themes')
+            .update({
+              title: theme.title.trim(),
+              description: theme.description?.trim() || null,
+              ordem: themes.indexOf(theme) + 1
+            })
+            .eq('id', theme.id);
+
+          if (updateError) {
+            console.error('Error updating theme:', updateError);
+          }
+        }
+      }
+
+      // Insert new themes
+      if (newThemes.length > 0) {
+        const themesToInsert = newThemes
+          .filter(t => t.title.trim())
+          .map((theme, index) => ({
+            form_id: id!,
+            title: theme.title.trim(),
+            description: theme.description?.trim() || null,
+            ordem: existingThemes.length + index + 1
+          }));
+
+        if (themesToInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from('form_themes')
+            .insert(themesToInsert);
+
+          if (insertError) {
+            console.error('Error inserting themes:', insertError);
+          }
+        }
       }
 
       // Handle questions updates
@@ -407,6 +518,63 @@ const EditForm = () => {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Temas</CardTitle>
+            <Button onClick={addTheme} variant="outline" size="sm" disabled={isSaving}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Tema
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {themes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum tema cadastrado. Os temas são opcionais.
+            </div>
+          ) : (
+            themes.map((theme, index) => (
+              <div key={theme.id} className="p-4 border rounded-lg space-y-3 bg-accent/20">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={`theme-title-${theme.id}`}>
+                        Tema {index + 1}
+                        {theme.isNew && <span className="text-green-600 ml-1">(Novo)</span>}
+                      </Label>
+                    </div>
+                    <Input
+                      id={`theme-title-${theme.id}`}
+                      value={theme.title}
+                      onChange={(e) => updateTheme(theme.id, 'title', e.target.value)}
+                      placeholder="Título do tema..."
+                      disabled={isSaving}
+                    />
+                    <Textarea
+                      id={`theme-desc-${theme.id}`}
+                      value={theme.description || ""}
+                      onChange={(e) => updateTheme(theme.id, 'description', e.target.value)}
+                      placeholder="Descrição do tema (opcional)..."
+                      rows={2}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => removeTheme(theme.id)}
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSaving}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
