@@ -13,6 +13,7 @@ import EditForm from "./pages/EditForm";
 import Results from "./pages/Results";
 import PublicSurvey from "./pages/public/PublicSurvey";
 import ThankYou from "./pages/ThankYou";
+import Theme from "./pages/Theme";
 import Settings from "./pages/Settings";
 import AdminLogin from "./pages/AdminLogin";
 import Home from "./pages/Home";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/pesquisa/:id" element={<PublicSurvey />} />
             <Route path="/obrigado" element={<ThankYou />} />
+            <Route path="/tema" element={<Theme />} />
             
             {/* Admin authentication */}
             <Route path="/admin/login" element={<AdminLogin />} />
