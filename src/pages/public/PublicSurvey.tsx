@@ -185,11 +185,10 @@ const PublicSurvey = () => {
   }
 
   const handleAnswerChange = (value: string) => {
-    const qId = questions[currentQuestion]?.id;
-    if (!qId) return;
+    if (!currentQuestionId) return;
     setAnswers(prev => ({
       ...prev,
-      [qId]: value
+      [currentQuestionId]: value
     }));
   };
 
