@@ -197,6 +197,13 @@ export type Database = {
             referencedRelation: "form_themes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "questions_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "public_form_themes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       response_answers: {
@@ -362,6 +369,39 @@ export type Database = {
           },
         ]
       }
+      public_form_themes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          form_id: string | null
+          id: string | null
+          ordem: number | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "public_active_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_themes_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "response_counts"
+            referencedColumns: ["form_id"]
+          },
+        ]
+      }
       response_counts: {
         Row: {
           form_id: string | null
@@ -406,7 +446,7 @@ export type Database = {
     }
     Functions: {
       get_active_forms_for_public: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           description: string
           end_date: string
@@ -423,14 +463,20 @@ export type Database = {
           question_type: string
         }[]
       }
-      get_form_responses: {
-        Args: Record<PropertyKey, never> | { p_form_id: string }
-        Returns: Json
-      }
-      get_form_responses_json: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_form_responses:
+        | { Args: { p_form_id: string }; Returns: Json }
+        | {
+            Args: never
+            Returns: {
+              answer: string
+              answer_id: string
+              form_id: string
+              form_title: string
+              question_text: string
+              response_id: string
+            }[]
+          }
+      get_form_responses_json: { Args: never; Returns: Json }
       get_public_form_data: {
         Args: { form_id_param: string }
         Returns: {
@@ -449,10 +495,7 @@ export type Database = {
         Args: { p_answers: Json; p_form_id: string }
         Returns: string
       }
-      is_admin_user: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
+      is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       update_admin_user_profile: {
         Args: { new_nome: string }
         Returns: undefined
