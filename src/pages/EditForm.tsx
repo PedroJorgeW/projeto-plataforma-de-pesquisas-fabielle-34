@@ -183,7 +183,7 @@ const EditForm = () => {
     const newQuestion: Question = {
       id: `new_${Date.now()}`,
       question_text: "",
-      question_type: "text",
+      question_type: "likert",
       ordem: themes.length + questions.length + 1,
       form_id: id!,
       is_required: true,
@@ -191,6 +191,12 @@ const EditForm = () => {
       isNew: true
     };
     setQuestions([...questions, newQuestion]);
+  };
+
+  const updateQuestionType = (questionId: string, type: string) => {
+    setQuestions(questions.map(q => 
+      q.id === questionId ? { ...q, question_type: type } : q
+    ));
   };
 
   const removeQuestion = (questionId: string) => {
@@ -623,6 +629,25 @@ const EditForm = () => {
                       rows={2}
                       disabled={isSaving}
                     />
+
+                    <div>
+                      <Label htmlFor={`type-${question.id}`} className="text-sm">
+                        Tipo de Resposta
+                      </Label>
+                      <Select 
+                        value={question.question_type} 
+                        onValueChange={(value) => updateQuestionType(question.id, value)}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger id={`type-${question.id}`} className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="likert">Múltipla Escolha</SelectItem>
+                          <SelectItem value="text">Texto Livre (Discursiva)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     {formData.form_type === "custom" && question.custom_options && (
                       <div className="space-y-2 pl-4 border-l-2">
