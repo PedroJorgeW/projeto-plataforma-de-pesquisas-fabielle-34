@@ -89,9 +89,9 @@ const PublicSurvey = () => {
         return;
       }
 
-      // Fetch themes
+      // Fetch themes using public-safe view
       const { data: themesData, error: themesError } = await supabase
-        .from('form_themes')
+        .from('public_form_themes')
         .select('*')
         .eq('form_id', id)
         .order('ordem', { ascending: true });

@@ -344,6 +344,7 @@ export type Database = {
           ordem: number | null
           question_text: string | null
           question_type: string | null
+          theme_id: string | null
         }
         Relationships: [
           {
@@ -366,6 +367,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "response_counts"
             referencedColumns: ["form_id"]
+          },
+          {
+            foreignKeyName: "questions_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "form_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "public_form_themes"
+            referencedColumns: ["id"]
           },
         ]
       }
