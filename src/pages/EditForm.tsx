@@ -630,26 +630,28 @@ const EditForm = () => {
                       disabled={isSaving}
                     />
 
-                    <div>
-                      <Label htmlFor={`type-${question.id}`} className="text-sm">
-                        Tipo de Resposta
-                      </Label>
-                      <Select 
-                        value={question.question_type} 
-                        onValueChange={(value) => updateQuestionType(question.id, value)}
-                        disabled={isSaving}
-                      >
-                        <SelectTrigger id={`type-${question.id}`} className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="likert">Múltipla Escolha</SelectItem>
-                          <SelectItem value="text">Texto Livre (Discursiva)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {formData.form_type === "custom" && (
+                      <div>
+                        <Label htmlFor={`type-${question.id}`} className="text-sm">
+                          Tipo de Resposta
+                        </Label>
+                        <Select 
+                          value={question.question_type} 
+                          onValueChange={(value) => updateQuestionType(question.id, value)}
+                          disabled={isSaving}
+                        >
+                          <SelectTrigger id={`type-${question.id}`} className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="likert">Múltipla Escolha</SelectItem>
+                            <SelectItem value="text">Texto Livre (Discursiva)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                    {formData.form_type === "custom" && question.custom_options && (
+                    {formData.form_type === "custom" && question.question_type !== "text" && question.custom_options && (
                       <div className="space-y-2 pl-4 border-l-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm">Opções de Resposta</Label>
