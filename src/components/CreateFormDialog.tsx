@@ -37,6 +37,7 @@ interface Question extends FormItem {
   questionType: string;
   isRequired: boolean;
   customOptions: string[];
+  hasDiscursiveField: boolean;
 }
 
 interface CreateFormDialogProps {
@@ -103,20 +104,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       text: "",
       questionType: "text",
       isRequired: true,
-      customOptions: formType === "custom" ? [""] : []
-    };
-    setItems([...items, newQuestion]);
-  };
-
-  const addDiscursiveQuestion = () => {
-    const newQuestion: Question = {
-      id: Date.now().toString(),
-      type: 'question',
-      ordem: items.length,
-      text: "[Resposta Discursiva]",
-      questionType: "discursive",
-      isRequired: false,
-      customOptions: []
+      customOptions: formType === "custom" ? [""] : [],
+      hasDiscursiveField: false
     };
     setItems([...items, newQuestion]);
   };
@@ -187,6 +176,14 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       }
       return item;
     }));
+  };
+
+  const toggleDiscursiveField = (questionId: string) => {
+    setItems(items.map(item => 
+      item.id === questionId && item.type === 'question' 
+        ? { ...item, hasDiscursiveField: !item.hasDiscursiveField } 
+        : item
+    ));
   };
 
   const resetForm = () => {
@@ -535,10 +532,6 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Pergunta
                   </Button>
-                  <Button onClick={addDiscursiveQuestion} variant="outline" size="sm" disabled={isLoading}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Discursiva
-                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -663,15 +656,26 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                           <div className="space-y-2 pl-4 border-l-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-sm">Opções de Resposta</Label>
-                              <Button
-                                onClick={() => addCustomOption(item.id)}
-                                variant="ghost"
-                                size="sm"
-                                disabled={isLoading}
-                              >
-                                <Plus className="h-3 w-3 mr-1" />
-                                Adicionar Opção
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => addCustomOption(item.id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isLoading}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Adicionar Opção
+                                </Button>
+                                <Button
+                                  onClick={() => toggleDiscursiveField(item.id)}
+                                  variant={item.hasDiscursiveField ? "default" : "ghost"}
+                                  size="sm"
+                                  disabled={isLoading}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  {item.hasDiscursiveField ? "Remover Discursiva" : "Adicionar Discursiva"}
+                                </Button>
+                              </div>
                             </div>
                             {item.customOptions.map((option, optIndex) => (
                               <div key={optIndex} className="flex items-center gap-2">
@@ -696,6 +700,13 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                                 )}
                               </div>
                             ))}
+                            {item.hasDiscursiveField && (
+                              <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed">
+                                <p className="text-sm text-muted-foreground italic">
+                                  ✏️ Campo de resposta discursiva incluído (os participantes poderão escrever livremente)
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 
