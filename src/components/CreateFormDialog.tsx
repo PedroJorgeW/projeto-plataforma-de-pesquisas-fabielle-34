@@ -108,6 +108,19 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     setItems([...items, newQuestion]);
   };
 
+  const addDiscursiveQuestion = () => {
+    const newQuestion: Question = {
+      id: Date.now().toString(),
+      type: 'question',
+      ordem: items.length,
+      text: "[Resposta Discursiva]",
+      questionType: "discursive",
+      isRequired: false,
+      customOptions: []
+    };
+    setItems([...items, newQuestion]);
+  };
+
   const removeItem = (id: string) => {
     setItems(items.filter(item => item.id !== id).map((item, index) => ({ ...item, ordem: index })));
   };
@@ -202,7 +215,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     const questions = items.filter((item): item is Question => item.type === 'question');
     const themes = items.filter((item): item is Theme => item.type === 'theme');
     
-    const validQuestions = questions.filter(q => q.text.trim());
+    const validQuestions = questions.filter(q => q.questionType === 'discursive' || q.text.trim());
     console.log('📝 Perguntas válidas:', validQuestions);
     
     if (validQuestions.length === 0) {
@@ -265,14 +278,16 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       // Validate custom form options
       if (formType === "custom") {
         for (const question of validQuestions) {
-          const validOptions = question.customOptions.filter(opt => opt.trim());
-          if (validOptions.length < 2) {
-            toast({
-              title: "Erro",
-              description: "Cada pergunta personalizada deve ter pelo menos 2 opções de resposta.",
-              variant: "destructive"
-            });
-            return;
+          if (question.questionType !== 'discursive') {
+            const validOptions = question.customOptions.filter(opt => opt.trim());
+            if (validOptions.length < 2) {
+              toast({
+                title: "Erro",
+                description: "Cada pergunta personalizada deve ter pelo menos 2 opções de resposta.",
+                variant: "destructive"
+              });
+              return;
+            }
           }
         }
       }
@@ -348,12 +363,14 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       // Create questions
       const questionsToInsert = validQuestions.map(question => ({
         form_id: form.id,
-        question_text: question.text.trim(),
+        question_text: question.text.trim() || "[Resposta Discursiva]",
         question_type: question.questionType,
         ordem: question.ordem + 1,
         admin_user_id: adminUser.id,
         is_required: question.isRequired,
-        custom_options: formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null
+        custom_options: question.questionType === 'discursive' 
+          ? null 
+          : (formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null)
       }));
 
       console.log('❓ Perguntas para inserir (estrutura completa):', JSON.stringify(questionsToInsert, null, 2));
@@ -518,6 +535,10 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Pergunta
                   </Button>
+                  <Button onClick={addDiscursiveQuestion} variant="outline" size="sm" disabled={isLoading}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Discursiva
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -622,15 +643,23 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                           </div>
                         </div>
                         
-                        <Textarea
-                          value={item.text}
-                          onChange={(e) => updateQuestion(item.id, e.target.value)}
-                          placeholder="Digite sua pergunta..."
-                          rows={2}
-                          disabled={isLoading}
-                        />
+                        {item.questionType === "discursive" ? (
+                          <div className="p-3 bg-muted rounded-md">
+                            <p className="text-sm text-muted-foreground italic">
+                              Campo de resposta discursiva - Os participantes poderão escrever livremente
+                            </p>
+                          </div>
+                        ) : (
+                          <Textarea
+                            value={item.text}
+                            onChange={(e) => updateQuestion(item.id, e.target.value)}
+                            placeholder="Digite sua pergunta..."
+                            rows={2}
+                            disabled={isLoading}
+                          />
+                        )}
 
-                        {formType === "custom" && (
+                        {formType === "custom" && item.questionType !== "discursive" && (
                           <div className="space-y-2 pl-4 border-l-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-sm">Opções de Resposta</Label>

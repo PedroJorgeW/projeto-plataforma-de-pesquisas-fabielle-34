@@ -193,6 +193,20 @@ const EditForm = () => {
     setQuestions([...questions, newQuestion]);
   };
 
+  const addDiscursiveQuestion = () => {
+    const newQuestion: Question = {
+      id: `new_${Date.now()}`,
+      question_text: "[Resposta Discursiva]",
+      question_type: "discursive",
+      ordem: themes.length + questions.length + 1,
+      form_id: id!,
+      is_required: false,
+      custom_options: null,
+      isNew: true
+    };
+    setQuestions([...questions, newQuestion]);
+  };
+
   const updateQuestionType = (questionId: string, type: string) => {
     setQuestions(questions.map(q => 
       q.id === questionId ? { ...q, question_type: type } : q
@@ -257,7 +271,7 @@ const EditForm = () => {
       return;
     }
 
-    const validQuestions = questions.filter(q => q.question_text.trim());
+    const validQuestions = questions.filter(q => q.question_type === 'discursive' || q.question_text.trim());
     if (validQuestions.length === 0) {
       toast({
         title: "Erro",
@@ -372,17 +386,19 @@ const EditForm = () => {
 
       // Update existing questions
       for (const question of existingQuestions) {
-        if (question.question_text.trim()) {
+        if (question.question_type === 'discursive' || question.question_text.trim()) {
           const { error: updateError } = await supabase
             .from('questions')
             .update({
-              question_text: question.question_text.trim(),
+              question_text: question.question_text.trim() || "[Resposta Discursiva]",
               question_type: question.question_type,
               ordem: questions.indexOf(question) + 1,
               is_required: question.is_required,
-              custom_options: formData.form_type === "custom" && question.custom_options 
-                ? question.custom_options.filter(opt => opt.trim()) 
-                : null
+              custom_options: question.question_type === 'discursive' 
+                ? null 
+                : (formData.form_type === "custom" && question.custom_options 
+                  ? question.custom_options.filter(opt => opt.trim()) 
+                  : null)
             })
             .eq('id', question.id);
 
@@ -395,17 +411,19 @@ const EditForm = () => {
       // Insert new questions
       if (newQuestions.length > 0) {
         const questionsToInsert = newQuestions
-          .filter(q => q.question_text.trim())
+          .filter(q => q.question_type === 'discursive' || q.question_text.trim())
           .map((question, index) => ({
             form_id: id!,
-            question_text: question.question_text.trim(),
+            question_text: question.question_text.trim() || "[Resposta Discursiva]",
             question_type: question.question_type,
             ordem: existingQuestions.length + index + 1,
             admin_user_id: user?.id || '',
             is_required: question.is_required,
-            custom_options: formData.form_type === "custom" && question.custom_options 
-              ? question.custom_options.filter(opt => opt.trim()) 
-              : null
+            custom_options: question.question_type === 'discursive' 
+              ? null 
+              : (formData.form_type === "custom" && question.custom_options 
+                ? question.custom_options.filter(opt => opt.trim()) 
+                : null)
           }));
 
         if (questionsToInsert.length > 0) {
@@ -588,10 +606,16 @@ const EditForm = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Perguntas</CardTitle>
-            <Button onClick={addQuestion} variant="outline" size="sm" disabled={isSaving}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Pergunta
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={addQuestion} variant="outline" size="sm" disabled={isSaving}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Pergunta
+              </Button>
+              <Button onClick={addDiscursiveQuestion} variant="outline" size="sm" disabled={isSaving}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Discursiva
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -621,16 +645,24 @@ const EditForm = () => {
                         </Label>
                       </div>
                     </div>
-                    <Textarea
-                      id={`question-${question.id}`}
-                      value={question.question_text}
-                      onChange={(e) => updateQuestion(question.id, e.target.value)}
-                      placeholder="Digite sua pergunta..."
-                      rows={2}
-                      disabled={isSaving}
-                    />
+                    {question.question_type === "discursive" ? (
+                      <div className="p-3 bg-muted rounded-md">
+                        <p className="text-sm text-muted-foreground italic">
+                          Campo de resposta discursiva - Os participantes poderão escrever livremente
+                        </p>
+                      </div>
+                    ) : (
+                      <Textarea
+                        id={`question-${question.id}`}
+                        value={question.question_text}
+                        onChange={(e) => updateQuestion(question.id, e.target.value)}
+                        placeholder="Digite sua pergunta..."
+                        rows={2}
+                        disabled={isSaving}
+                      />
+                    )}
 
-                    {formData.form_type === "custom" && (
+                    {formData.form_type === "custom" && question.question_type !== "discursive" && (
                       <div>
                         <Label htmlFor={`type-${question.id}`} className="text-sm">
                           Tipo de Resposta

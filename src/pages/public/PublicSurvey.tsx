@@ -355,17 +355,27 @@ const PublicSurvey = () => {
         {currentQuestionData ? (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">
-                  {currentQuestionData?.question_text}
-                </CardTitle>
-                {currentQuestionData?.is_required === false && (
+              {currentQuestionData.question_type !== 'discursive' && (
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {currentQuestionData?.question_text}
+                  </CardTitle>
+                  {currentQuestionData?.is_required === false && (
+                    <Badge variant="outline" className="ml-2">Opcional</Badge>
+                  )}
+                </div>
+              )}
+              {currentQuestionData.question_type === 'discursive' && (
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    Escreva sua opinião ou sugestão
+                  </CardTitle>
                   <Badge variant="outline" className="ml-2">Opcional</Badge>
-                )}
-              </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
-              {currentQuestionData.question_type === 'text' ? (
+              {currentQuestionData.question_type === 'text' || currentQuestionData.question_type === 'discursive' ? (
                 <div className="space-y-2">
                   <Textarea
                     value={answers[currentQuestionId || ''] || ""}
