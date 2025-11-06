@@ -653,7 +653,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                           />
                         )}
 
-                        {formType === "custom" && item.questionType !== "discursive" && (
+                        {formType === "custom" && item.questionType !== "discursive" && item.questionType !== "text" && (
                           <div className="space-y-2 pl-4 border-l-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-sm">Opções de Resposta</Label>
