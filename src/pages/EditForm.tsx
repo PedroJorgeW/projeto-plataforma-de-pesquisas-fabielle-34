@@ -24,6 +24,7 @@ interface Question {
   custom_options: string[] | null;
   theme_id?: string | null;
   isNew?: boolean;
+  has_discursive_field?: boolean;
 }
 
 interface Theme {
@@ -188,7 +189,8 @@ const EditForm = () => {
       form_id: id!,
       is_required: true,
       custom_options: formData.form_type === "custom" ? [""] : null,
-      isNew: true
+      isNew: true,
+      has_discursive_field: false
     };
     setQuestions([...questions, newQuestion]);
   };
@@ -202,9 +204,16 @@ const EditForm = () => {
       form_id: id!,
       is_required: false,
       custom_options: null,
-      isNew: true
+      isNew: true,
+      has_discursive_field: false
     };
     setQuestions([...questions, newQuestion]);
+  };
+
+  const toggleDiscursiveField = (questionId: string) => {
+    setQuestions(questions.map(q => 
+      q.id === questionId ? { ...q, has_discursive_field: !q.has_discursive_field } : q
+    ));
   };
 
   const updateQuestionType = (questionId: string, type: string) => {
@@ -398,7 +407,8 @@ const EditForm = () => {
                 ? null 
                 : (formData.form_type === "custom" && question.custom_options 
                   ? question.custom_options.filter(opt => opt.trim()) 
-                  : null)
+                  : null),
+              has_discursive_field: question.has_discursive_field || false
             })
             .eq('id', question.id);
 
@@ -423,7 +433,8 @@ const EditForm = () => {
               ? null 
               : (formData.form_type === "custom" && question.custom_options 
                 ? question.custom_options.filter(opt => opt.trim()) 
-                : null)
+                : null),
+            has_discursive_field: question.has_discursive_field || false
           }));
 
         if (questionsToInsert.length > 0) {
@@ -606,16 +617,10 @@ const EditForm = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Perguntas</CardTitle>
-            <div className="flex gap-2">
-              <Button onClick={addQuestion} variant="outline" size="sm" disabled={isSaving}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Pergunta
-              </Button>
-              <Button onClick={addDiscursiveQuestion} variant="outline" size="sm" disabled={isSaving}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Discursiva
-              </Button>
-            </div>
+            <Button onClick={addQuestion} variant="outline" size="sm" disabled={isSaving}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Pergunta
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -683,19 +688,30 @@ const EditForm = () => {
                       </div>
                     )}
 
-                    {formData.form_type === "custom" && question.question_type !== "text" && question.custom_options && (
+                    {formData.form_type === "custom" && question.question_type !== "discursive" && question.question_type !== "text" && question.custom_options && (
                       <div className="space-y-2 pl-4 border-l-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm">Opções de Resposta</Label>
-                          <Button
-                            onClick={() => addCustomOption(question.id)}
-                            variant="ghost"
-                            size="sm"
-                            disabled={isSaving}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Adicionar Opção
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => addCustomOption(question.id)}
+                              variant="ghost"
+                              size="sm"
+                              disabled={isSaving}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Adicionar Opção
+                            </Button>
+                            <Button
+                              onClick={() => toggleDiscursiveField(question.id)}
+                              variant={question.has_discursive_field ? "default" : "ghost"}
+                              size="sm"
+                              disabled={isSaving}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              {question.has_discursive_field ? "Remover Discursiva" : "Adicionar Discursiva"}
+                            </Button>
+                          </div>
                         </div>
                         {question.custom_options.map((option, optIndex) => (
                           <div key={optIndex} className="flex items-center gap-2">
@@ -720,6 +736,13 @@ const EditForm = () => {
                             )}
                           </div>
                         ))}
+                        {question.has_discursive_field && (
+                          <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed">
+                            <p className="text-sm text-muted-foreground italic">
+                              ✏️ Campo de resposta discursiva incluído (os participantes poderão escrever livremente)
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 

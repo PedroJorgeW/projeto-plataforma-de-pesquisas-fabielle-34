@@ -367,7 +367,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         is_required: question.isRequired,
         custom_options: question.questionType === 'discursive' 
           ? null 
-          : (formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null)
+          : (formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null),
+        has_discursive_field: question.hasDiscursiveField || false
       }));
 
       console.log('❓ Perguntas para inserir (estrutura completa):', JSON.stringify(questionsToInsert, null, 2));

@@ -137,6 +137,7 @@ export type Database = {
           created_at: string
           custom_options: Json | null
           form_id: string
+          has_discursive_field: boolean | null
           id: string
           is_required: boolean | null
           ordem: number | null
@@ -149,6 +150,7 @@ export type Database = {
           created_at?: string
           custom_options?: Json | null
           form_id: string
+          has_discursive_field?: boolean | null
           id?: string
           is_required?: boolean | null
           ordem?: number | null
@@ -161,6 +163,7 @@ export type Database = {
           created_at?: string
           custom_options?: Json | null
           form_id?: string
+          has_discursive_field?: boolean | null
           id?: string
           is_required?: boolean | null
           ordem?: number | null
