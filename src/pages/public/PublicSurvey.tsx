@@ -123,6 +123,7 @@ const PublicSurvey = () => {
           ordem: q.ordem ?? null,
           is_required: q.is_required,
           theme_id: q.theme_id,
+          has_discursive_field: q.has_discursive_field,
           custom_options: Array.isArray(q.custom_options)
             ? (q.custom_options as string[])
             : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
@@ -273,7 +274,24 @@ const PublicSurvey = () => {
       return;
     }
 
-    await submitFormResponse(answers);
+    // Combinar respostas de múltipla escolha com discursivas
+    const processedAnswers: Record<string, string> = {};
+    questions.forEach(q => {
+      const mainAnswer = answers[q.id];
+      const discursiveAnswer = answers[`${q.id}_discursive`];
+      
+      if (mainAnswer || discursiveAnswer) {
+        let combinedAnswer = mainAnswer || "";
+        if (discursiveAnswer && discursiveAnswer.trim()) {
+          combinedAnswer = mainAnswer 
+            ? `${mainAnswer} | Comentário: ${discursiveAnswer.trim()}`
+            : discursiveAnswer.trim();
+        }
+        processedAnswers[q.id] = combinedAnswer;
+      }
+    });
+
+    await submitFormResponse(processedAnswers);
   };
 
   const progress = ((currentQuestion + 1) / navigationItems.length) * 100;
