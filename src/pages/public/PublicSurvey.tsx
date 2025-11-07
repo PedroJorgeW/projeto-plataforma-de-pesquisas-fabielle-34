@@ -107,8 +107,8 @@ const PublicSurvey = () => {
 
       // Fetch questions using public-safe view
       const { data: questionsData, error: questionsError } = await supabase
-        .from('questions')
-        .select('id, question_text, question_type, ordem, is_required, custom_options, theme_id, has_discursive_field, form_id')
+        .from('public_form_questions')
+        .select('*')
         .eq('form_id', id)
         .order('ordem', { ascending: true });
 
@@ -123,11 +123,12 @@ const PublicSurvey = () => {
           ordem: q.ordem ?? null,
           is_required: q.is_required,
           theme_id: q.theme_id,
-          has_discursive_field: q.has_discursive_field,
+          has_discursive_field: q.has_discursive_field ?? false,
           custom_options: Array.isArray(q.custom_options)
             ? (q.custom_options as string[])
             : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
         }));
+        console.log('📋 Perguntas carregadas:', mappedQuestions);
         setQuestions(mappedQuestions);
       }
 
@@ -384,7 +385,7 @@ const PublicSurvey = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {currentQuestionData.question_type === 'text' || currentQuestionData.question_type === 'discursive' ? (
+              {(currentQuestionData.question_type === 'text' || currentQuestionData.question_type === 'discursive') && !currentQuestionData.has_discursive_field ? (
                 <div className="space-y-2">
                   <Textarea
                     value={answers[currentQuestionId || ''] || ""}

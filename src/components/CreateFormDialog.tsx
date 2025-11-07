@@ -102,7 +102,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       type: 'question',
       ordem: items.length,
       text: "",
-      questionType: "likert",
+      questionType: "text",
       isRequired: true,
       customOptions: formType === "custom" ? [""] : [],
       hasDiscursiveField: false
