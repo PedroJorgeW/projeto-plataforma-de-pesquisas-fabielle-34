@@ -361,7 +361,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       const questionsToInsert = validQuestions.map(question => ({
         form_id: form.id,
         question_text: question.text.trim() || "[Resposta Discursiva]",
-        question_type: question.questionType === 'discursive' ? 'discursive' : 'likert',
+        question_type: question.questionType,
         ordem: question.ordem + 1,
         admin_user_id: adminUser.id,
         is_required: question.isRequired,
