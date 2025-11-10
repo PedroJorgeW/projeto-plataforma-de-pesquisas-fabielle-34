@@ -102,7 +102,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       type: 'question',
       ordem: items.length,
       text: "",
-      questionType: "text",
+      questionType: "likert",
       isRequired: true,
       customOptions: formType === "custom" ? [""] : [],
       hasDiscursiveField: false
@@ -361,13 +361,13 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       const questionsToInsert = validQuestions.map(question => ({
         form_id: form.id,
         question_text: question.text.trim() || "[Resposta Discursiva]",
-        question_type: question.questionType,
+        question_type: question.questionType === 'text' ? 'discursive' : question.questionType,
         ordem: question.ordem + 1,
         admin_user_id: adminUser.id,
         is_required: question.isRequired,
-        custom_options: question.questionType === 'discursive' 
+        custom_options: question.questionType === 'discursive' || question.questionType === 'text'
           ? null 
-          : (formType === "custom" ? question.customOptions.filter(opt => opt.trim()) : null),
+          : (formType === "custom" && Array.isArray(question.customOptions) ? question.customOptions.filter(opt => opt.trim()) : null),
         has_discursive_field: question.hasDiscursiveField || false
       }));
 
@@ -678,7 +678,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                                 </Button>
                               </div>
                             </div>
-                            {item.customOptions.map((option, optIndex) => (
+                            {Array.isArray(item.customOptions) && item.customOptions.map((option, optIndex) => (
                               <div key={optIndex} className="flex items-center gap-2">
                                 <Badge variant="outline" className="px-2">
                                   {optIndex + 1}
@@ -689,7 +689,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                                   placeholder={`Opção ${optIndex + 1}`}
                                   disabled={isLoading}
                                 />
-                                {item.customOptions.length > 1 && (
+                                {Array.isArray(item.customOptions) && item.customOptions.length > 1 && (
                                   <Button
                                     onClick={() => removeCustomOption(item.id, optIndex)}
                                     variant="ghost"

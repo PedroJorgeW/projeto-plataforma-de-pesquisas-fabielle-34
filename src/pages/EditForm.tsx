@@ -130,11 +130,12 @@ const EditForm = () => {
       setThemes(mappedThemes);
       
       // Map questions to include new fields with defaults
-      const mappedQuestions: Question[] = (questionsData || []).map((q: any) => ({
+      const mappedQuestions: Question[] = Array.isArray(questionsData) ? questionsData.map((q: any) => ({
         ...q,
         is_required: q.is_required ?? true,
-        custom_options: q.custom_options || null
-      }));
+        custom_options: Array.isArray(q.custom_options) ? q.custom_options : null,
+        has_discursive_field: q.has_discursive_field ?? false
+      })) : [];
       
       setQuestions(mappedQuestions);
       
@@ -713,7 +714,7 @@ const EditForm = () => {
                             </Button>
                           </div>
                         </div>
-                        {question.custom_options.map((option, optIndex) => (
+                        {Array.isArray(question.custom_options) && question.custom_options.map((option, optIndex) => (
                           <div key={optIndex} className="flex items-center gap-2">
                             <Badge variant="outline" className="px-2">
                               {optIndex + 1}

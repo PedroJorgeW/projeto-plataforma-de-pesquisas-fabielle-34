@@ -385,7 +385,7 @@ const PublicSurvey = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {(currentQuestionData.question_type === 'text' || currentQuestionData.question_type === 'discursive') && !currentQuestionData.has_discursive_field ? (
+              {currentQuestionData.question_type === 'discursive' ? (
                 <div className="space-y-2">
                   <Textarea
                     value={answers[currentQuestionId || ''] || ""}
