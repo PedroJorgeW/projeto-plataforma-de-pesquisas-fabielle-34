@@ -107,7 +107,7 @@ const PublicSurvey = () => {
 
       // Fetch questions using public-safe view
       const { data: questionsData, error: questionsError } = await supabase
-        .from('public_form_questions')
+        .from('questions')
         .select('*')
         .eq('form_id', id)
         .order('ordem', { ascending: true });
@@ -385,7 +385,7 @@ const PublicSurvey = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {currentQuestionData.question_type === 'discursive' ? (
+              {(currentQuestionData.question_type === 'discursive' || currentQuestionData.question_type === 'text') ? (
                 <div className="space-y-2">
                   <Textarea
                     value={answers[currentQuestionId || ''] || ""}
