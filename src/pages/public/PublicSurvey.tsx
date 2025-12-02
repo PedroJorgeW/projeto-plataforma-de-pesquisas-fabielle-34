@@ -385,10 +385,10 @@ const PublicSurvey = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {currentQuestionData.question_type === 'discursive' ? (
+              {currentQuestionData.question_type === 'text' ? (
                 <div className="space-y-2">
                   <Textarea
-                    value={answers[currentQuestionId || ''] || ""}
+                    value={answers[currentQuestionId || ""] || ""}
                     onChange={(e) => handleAnswerChange(e.target.value)}
                     placeholder="Digite sua resposta aqui..."
                     rows={6}
@@ -398,53 +398,53 @@ const PublicSurvey = () => {
               ) : (
                 <>
                   <RadioGroup
-                    value={answers[currentQuestionId || ''] || ""}
+                    value={answers[currentQuestionId || ""] || ""}
                     onValueChange={handleAnswerChange}
                   >
                     {displayOptions.map((option, idx) => {
-                      const isSelected = answers[currentQuestionId || ''] === option.value;
-                    const isStandardForm = form?.form_type !== "custom";
-                    
-                    // Apply color coding only for standard forms
-                    let borderClass = 'border-border';
-                    let bgClass = '';
-                    let textClass = '';
-                    
-                    if (isSelected && isStandardForm) {
-                      if (option.value === 'muito_satisfeito') {
-                        borderClass = 'border-very-satisfied';
-                        bgClass = 'bg-very-satisfied/10';
-                        textClass = 'text-very-satisfied';
-                      } else if (option.value === 'satisfeito') {
-                        borderClass = 'border-satisfied';
-                        bgClass = 'bg-satisfied/10';
-                        textClass = 'text-satisfied';
-                      } else if (option.value === 'insatisfeito') {
-                        borderClass = 'border-unsatisfied';
-                        bgClass = 'bg-unsatisfied/10';
-                        textClass = 'text-unsatisfied';
+                      const isSelected = answers[currentQuestionId || ""] === option.value;
+                      const isStandardForm = form?.form_type !== "custom";
+                      
+                      // Apply color coding only for standard forms
+                      let borderClass = 'border-border';
+                      let bgClass = '';
+                      let textClass = '';
+                      
+                      if (isSelected && isStandardForm) {
+                        if (option.value === 'muito_satisfeito') {
+                          borderClass = 'border-very-satisfied';
+                          bgClass = 'bg-very-satisfied/10';
+                          textClass = 'text-very-satisfied';
+                        } else if (option.value === 'satisfeito') {
+                          borderClass = 'border-satisfied';
+                          bgClass = 'bg-satisfied/10';
+                          textClass = 'text-satisfied';
+                        } else if (option.value === 'insatisfeito') {
+                          borderClass = 'border-unsatisfied';
+                          bgClass = 'bg-unsatisfied/10';
+                          textClass = 'text-unsatisfied';
+                        }
+                      } else if (isSelected) {
+                        borderClass = 'border-primary';
+                        bgClass = 'bg-primary/10';
+                        textClass = 'text-primary';
                       }
-                    } else if (isSelected) {
-                      borderClass = 'border-primary';
-                      bgClass = 'bg-primary/10';
-                      textClass = 'text-primary';
-                    }
-                    
-                    return (
-                      <div 
-                        key={`${option.value}-${idx}`}
-                        className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${borderClass} ${bgClass}`}
-                      >
-                        <RadioGroupItem value={option.value} id={`${option.value}-${idx}`} />
-                        <Label 
-                          htmlFor={`${option.value}-${idx}`}
-                          className={`cursor-pointer font-medium ${textClass}`}
+                      
+                      return (
+                        <div 
+                          key={`${option.value}-${idx}`}
+                          className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${borderClass} ${bgClass}`}
                         >
-                          {option.label}
-                        </Label>
-                      </div>
-                    );
-                  })}
+                          <RadioGroupItem value={option.value} id={`${option.value}-${idx}`} />
+                          <Label 
+                            htmlFor={`${option.value}-${idx}`}
+                            className={`cursor-pointer font-medium ${textClass}`}
+                          >
+                            {option.label}
+                          </Label>
+                        </div>
+                      );
+                    })}
                   </RadioGroup>
                   
                   {currentQuestionData.has_discursive_field && (
