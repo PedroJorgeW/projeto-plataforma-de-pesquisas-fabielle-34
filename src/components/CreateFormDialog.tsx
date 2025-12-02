@@ -150,6 +150,12 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     ));
   };
 
+  const updateQuestionType = (id: string, questionType: 'text' | 'likert') => {
+    setItems(items.map(item => 
+      item.id === id && item.type === 'question' ? { ...item, questionType } : item
+    ));
+  };
+
   const addCustomOption = (questionId: string) => {
     setItems(items.map(item => 
       item.id === questionId && item.type === 'question' 
@@ -212,8 +218,9 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     const questions = items.filter((item): item is Question => item.type === 'question');
     const themes = items.filter((item): item is Theme => item.type === 'theme');
     
-    const validQuestions = questions.filter(q => q.questionType === 'discursive' || q.text.trim());
+    const validQuestions = questions.filter(q => q.text.trim());
     console.log('📝 Perguntas válidas:', validQuestions);
+    
     
     if (validQuestions.length === 0) {
       toast({
@@ -272,15 +279,15 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         admin_user_id: adminUser.id
       });
 
-      // Validate custom form options
+      // Validate custom form options (only for custom Likert questions)
       if (formType === "custom") {
         for (const question of validQuestions) {
-          if (question.questionType !== 'discursive') {
-            const validOptions = question.customOptions.filter(opt => opt.trim());
+          if (question.questionType === 'likert') {
+            const validOptions = (question.customOptions || []).filter(opt => opt.trim());
             if (validOptions.length < 2) {
               toast({
                 title: "Erro",
-                description: "Cada pergunta personalizada deve ter pelo menos 2 opções de resposta.",
+                description: "Cada pergunta personalizada do tipo múltipla escolha deve ter pelo menos 2 opções de resposta.",
                 variant: "destructive"
               });
               return;
@@ -358,18 +365,23 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       });
       
       // Create questions
-      const questionsToInsert = validQuestions.map(question => ({
-        form_id: form.id,
-        question_text: question.text.trim() || "[Resposta Discursiva]",
-        question_type: question.questionType === 'text' ? 'discursive' : question.questionType,
-        ordem: question.ordem + 1,
-        admin_user_id: adminUser.id,
-        is_required: question.isRequired,
-        custom_options: question.questionType === 'discursive' || question.questionType === 'text'
-          ? null 
-          : (formType === "custom" && Array.isArray(question.customOptions) ? question.customOptions.filter(opt => opt.trim()) : null),
-        has_discursive_field: question.hasDiscursiveField || false
-      }));
+      const questionsToInsert = validQuestions.map(question => {
+        const isLikert = question.questionType === 'likert';
+        const cleanedOptions = isLikert && formType === "custom" && Array.isArray(question.customOptions)
+          ? question.customOptions.filter(opt => opt.trim())
+          : null;
+
+        return {
+          form_id: form.id,
+          question_text: question.text.trim() || "[Pergunta]",
+          question_type: isLikert ? 'likert' : 'text',
+          ordem: question.ordem + 1,
+          admin_user_id: adminUser.id,
+          is_required: question.isRequired,
+          custom_options: cleanedOptions,
+          has_discursive_field: isLikert ? (question.hasDiscursiveField || false) : false
+        };
+      });
 
       console.log('❓ Perguntas para inserir (estrutura completa):', JSON.stringify(questionsToInsert, null, 2));
       console.log('❓ Total de perguntas:', questionsToInsert.length);

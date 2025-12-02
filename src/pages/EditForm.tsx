@@ -199,8 +199,8 @@ const EditForm = () => {
   const addDiscursiveQuestion = () => {
     const newQuestion: Question = {
       id: `new_${Date.now()}`,
-      question_text: "[Resposta Discursiva]",
-      question_type: "discursive",
+      question_text: "[Pergunta discursiva]",
+      question_type: "text",
       ordem: themes.length + questions.length + 1,
       form_id: id!,
       is_required: false,
@@ -281,7 +281,7 @@ const EditForm = () => {
       return;
     }
 
-    const validQuestions = questions.filter(q => q.question_type === 'discursive' || q.question_text.trim());
+    const validQuestions = questions.filter(q => q.question_text.trim());
     if (validQuestions.length === 0) {
       toast({
         title: "Erro",
@@ -396,20 +396,21 @@ const EditForm = () => {
 
       // Update existing questions
       for (const question of existingQuestions) {
-        if (question.question_type === 'discursive' || question.question_text.trim()) {
+        if (question.question_text.trim()) {
+          const isLikert = question.question_type === 'likert';
+          const cleanedOptions = isLikert && formData.form_type === "custom" && Array.isArray(question.custom_options)
+            ? question.custom_options.filter(opt => opt.trim())
+            : null;
+
           const { error: updateError } = await supabase
             .from('questions')
             .update({
-              question_text: question.question_text.trim() || "[Resposta Discursiva]",
-              question_type: question.question_type,
+              question_text: question.question_text.trim(),
+              question_type: isLikert ? 'likert' : 'text',
               ordem: questions.indexOf(question) + 1,
               is_required: question.is_required,
-              custom_options: question.question_type === 'discursive' 
-                ? null 
-                : (formData.form_type === "custom" && question.custom_options 
-                  ? question.custom_options.filter(opt => opt.trim()) 
-                  : null),
-              has_discursive_field: question.has_discursive_field || false
+              custom_options: cleanedOptions,
+              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false
             })
             .eq('id', question.id);
 
@@ -422,21 +423,24 @@ const EditForm = () => {
       // Insert new questions
       if (newQuestions.length > 0) {
         const questionsToInsert = newQuestions
-          .filter(q => q.question_type === 'discursive' || q.question_text.trim())
-          .map((question, index) => ({
-            form_id: id!,
-            question_text: question.question_text.trim() || "[Resposta Discursiva]",
-            question_type: question.question_type,
-            ordem: existingQuestions.length + index + 1,
-            admin_user_id: user?.id || '',
-            is_required: question.is_required,
-            custom_options: question.question_type === 'discursive' 
-              ? null 
-              : (formData.form_type === "custom" && question.custom_options 
-                ? question.custom_options.filter(opt => opt.trim()) 
-                : null),
-            has_discursive_field: question.has_discursive_field || false
-          }));
+          .filter(q => q.question_text.trim())
+          .map((question, index) => {
+            const isLikert = question.question_type === 'likert';
+            const cleanedOptions = isLikert && formData.form_type === "custom" && Array.isArray(question.custom_options)
+              ? question.custom_options.filter(opt => opt.trim())
+              : null;
+
+            return {
+              form_id: id!,
+              question_text: question.question_text.trim(),
+              question_type: isLikert ? 'likert' : 'text',
+              ordem: existingQuestions.length + index + 1,
+              admin_user_id: user?.id || '',
+              is_required: question.is_required,
+              custom_options: cleanedOptions,
+              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false
+            };
+          });
 
         if (questionsToInsert.length > 0) {
           const { error: insertError } = await supabase
@@ -651,24 +655,16 @@ const EditForm = () => {
                         </Label>
                       </div>
                     </div>
-                    {question.question_type === "discursive" ? (
-                      <div className="p-3 bg-muted rounded-md">
-                        <p className="text-sm text-muted-foreground italic">
-                          Campo de resposta discursiva - Os participantes poderão escrever livremente
-                        </p>
-                      </div>
-                    ) : (
-                      <Textarea
-                        id={`question-${question.id}`}
-                        value={question.question_text}
-                        onChange={(e) => updateQuestion(question.id, e.target.value)}
-                        placeholder="Digite sua pergunta..."
-                        rows={2}
-                        disabled={isSaving}
-                      />
-                    )}
+                    <Textarea
+                      id={`question-${question.id}`}
+                      value={question.question_text}
+                      onChange={(e) => updateQuestion(question.id, e.target.value)}
+                      placeholder="Digite sua pergunta..."
+                      rows={2}
+                      disabled={isSaving}
+                    />
 
-                    {formData.form_type === "custom" && question.question_type !== "discursive" && (
+                    {formData.form_type === "custom" && (
                       <div>
                         <Label htmlFor={`type-${question.id}`} className="text-sm">
                           Tipo de Resposta

@@ -155,7 +155,7 @@ export type Database = {
           is_required?: boolean | null
           ordem?: number | null
           question_text: string
-          question_type?: string
+          question_type: string
           theme_id?: string | null
         }
         Update: {
@@ -342,6 +342,7 @@ export type Database = {
         Row: {
           custom_options: Json | null
           form_id: string | null
+          has_discursive_field: boolean | null
           id: string | null
           is_required: boolean | null
           ordem: number | null
