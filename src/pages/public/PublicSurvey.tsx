@@ -397,12 +397,22 @@ const PublicSurvey = () => {
                 </div>
               ) : (
                 <>
+                  {/* Multiple choice options */}
                   <RadioGroup
-                    value={answers[currentQuestionId || ""] || ""}
-                    onValueChange={handleAnswerChange}
+                    value={currentQuestionData.has_discursive_field && answers[`${currentQuestionId}_is_discursive`] === "true" ? "" : (answers[currentQuestionId || ""] || "")}
+                    onValueChange={(value) => {
+                      const newAnswers = { ...answers };
+                      newAnswers[currentQuestionId || ""] = value;
+                      // Clear discursive mode when selecting an option
+                      if (currentQuestionData.has_discursive_field) {
+                        delete newAnswers[`${currentQuestionId}_is_discursive`];
+                      }
+                      setAnswers(newAnswers);
+                    }}
                   >
                     {displayOptions.map((option, idx) => {
-                      const isSelected = answers[currentQuestionId || ""] === option.value;
+                      const isDiscursiveMode = currentQuestionData.has_discursive_field && answers[`${currentQuestionId}_is_discursive`] === "true";
+                      const isSelected = !isDiscursiveMode && answers[currentQuestionId || ""] === option.value;
                       const isStandardForm = form?.form_type !== "custom";
                       
                       // Apply color coding only for standard forms
@@ -447,17 +457,28 @@ const PublicSurvey = () => {
                     })}
                   </RadioGroup>
                   
+                  {/* Discursive alternative (mutually exclusive with multiple choice) */}
                   {currentQuestionData.has_discursive_field && (
                     <div className="space-y-2 mt-4 pt-4 border-t">
-                      <Label className="text-sm font-medium">Comentário adicional (opcional)</Label>
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Ou escreva sua resposta:
+                      </Label>
                       <Textarea
-                        value={answers[`${currentQuestionId}_discursive`] || ""}
+                        value={answers[`${currentQuestionId}_is_discursive`] === "true" ? (answers[currentQuestionId || ""] || "") : ""}
                         onChange={(e) => {
                           const newAnswers = { ...answers };
-                          newAnswers[`${currentQuestionId}_discursive`] = e.target.value;
+                          newAnswers[currentQuestionId || ""] = e.target.value;
+                          newAnswers[`${currentQuestionId}_is_discursive`] = "true";
                           setAnswers(newAnswers);
                         }}
-                        placeholder="Escreva aqui se quiser adicionar mais detalhes..."
+                        onFocus={() => {
+                          // When focusing the textarea, switch to discursive mode
+                          const newAnswers = { ...answers };
+                          newAnswers[`${currentQuestionId}_is_discursive`] = "true";
+                          newAnswers[currentQuestionId || ""] = "";
+                          setAnswers(newAnswers);
+                        }}
+                        placeholder="Digite sua resposta aqui..."
                         rows={4}
                         className="w-full"
                       />
