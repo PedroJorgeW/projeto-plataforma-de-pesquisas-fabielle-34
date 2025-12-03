@@ -38,6 +38,7 @@ interface Question extends FormItem {
   isRequired: boolean;
   customOptions: string[];
   hasDiscursiveField: boolean;
+  discursivePlaceholder: string;
 }
 
 interface CreateFormDialogProps {
@@ -105,7 +106,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       questionType: "likert",
       isRequired: true,
       customOptions: formType === "custom" ? [""] : [],
-      hasDiscursiveField: false
+      hasDiscursiveField: false,
+      discursivePlaceholder: "Digite sua resposta aqui..."
     };
     setItems([...items, newQuestion]);
   };
@@ -379,7 +381,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
           admin_user_id: adminUser.id,
           is_required: question.isRequired,
           custom_options: cleanedOptions,
-          has_discursive_field: isLikert ? (question.hasDiscursiveField || false) : false
+          has_discursive_field: isLikert ? (question.hasDiscursiveField || false) : false,
+          discursive_placeholder: question.discursivePlaceholder || "Digite sua resposta aqui..."
         };
       });
 
@@ -714,10 +717,20 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                               </div>
                             ))}
                             {item.hasDiscursiveField && (
-                              <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed">
+                              <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed space-y-2">
                                 <p className="text-sm text-muted-foreground italic">
-                                  ✏️ Campo de resposta discursiva incluído (os participantes poderão escrever livremente)
+                                  ✏️ Campo de resposta discursiva incluído
                                 </p>
+                                <Input
+                                  value={item.discursivePlaceholder}
+                                  onChange={(e) => setItems(items.map(i => 
+                                    i.id === item.id && i.type === 'question' 
+                                      ? { ...i, discursivePlaceholder: e.target.value } 
+                                      : i
+                                  ))}
+                                  placeholder="Texto placeholder da resposta..."
+                                  disabled={isLoading}
+                                />
                               </div>
                             )}
                           </div>

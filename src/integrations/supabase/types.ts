@@ -136,6 +136,7 @@ export type Database = {
           admin_user_id: string
           created_at: string
           custom_options: Json | null
+          discursive_placeholder: string | null
           form_id: string
           has_discursive_field: boolean | null
           id: string
@@ -149,6 +150,7 @@ export type Database = {
           admin_user_id: string
           created_at?: string
           custom_options?: Json | null
+          discursive_placeholder?: string | null
           form_id: string
           has_discursive_field?: boolean | null
           id?: string
@@ -162,6 +164,7 @@ export type Database = {
           admin_user_id?: string
           created_at?: string
           custom_options?: Json | null
+          discursive_placeholder?: string | null
           form_id?: string
           has_discursive_field?: boolean | null
           id?: string
