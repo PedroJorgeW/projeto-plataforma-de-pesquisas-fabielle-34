@@ -25,6 +25,7 @@ interface Question {
   theme_id?: string | null;
   isNew?: boolean;
   has_discursive_field?: boolean;
+  discursive_placeholder?: string;
 }
 
 interface Theme {
@@ -134,7 +135,8 @@ const EditForm = () => {
         ...q,
         is_required: q.is_required ?? true,
         custom_options: Array.isArray(q.custom_options) ? q.custom_options : null,
-        has_discursive_field: q.has_discursive_field ?? false
+        has_discursive_field: q.has_discursive_field ?? false,
+        discursive_placeholder: q.discursive_placeholder || "Digite sua resposta aqui..."
       })) : [];
       
       setQuestions(mappedQuestions);
@@ -410,7 +412,8 @@ const EditForm = () => {
               ordem: questions.indexOf(question) + 1,
               is_required: question.is_required,
               custom_options: cleanedOptions,
-              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false
+              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false,
+              discursive_placeholder: question.discursive_placeholder || "Digite sua resposta aqui..."
             })
             .eq('id', question.id);
 
@@ -438,7 +441,8 @@ const EditForm = () => {
               admin_user_id: user?.id || '',
               is_required: question.is_required,
               custom_options: cleanedOptions,
-              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false
+              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false,
+              discursive_placeholder: question.discursive_placeholder || "Digite sua resposta aqui..."
             };
           });
 
@@ -734,10 +738,20 @@ const EditForm = () => {
                           </div>
                         ))}
                         {question.has_discursive_field && (
-                          <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed">
+                          <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed space-y-2">
                             <p className="text-sm text-muted-foreground italic">
-                              ✏️ Campo de resposta discursiva incluído (os participantes poderão escrever livremente)
+                              ✏️ Campo de resposta discursiva incluído
                             </p>
+                            <Input
+                              value={question.discursive_placeholder || ""}
+                              onChange={(e) => setQuestions(questions.map(q => 
+                                q.id === question.id 
+                                  ? { ...q, discursive_placeholder: e.target.value } 
+                                  : q
+                              ))}
+                              placeholder="Texto placeholder da resposta..."
+                              disabled={isSaving}
+                            />
                           </div>
                         )}
                       </div>

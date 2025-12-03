@@ -459,10 +459,7 @@ const PublicSurvey = () => {
                   
                   {/* Discursive alternative (mutually exclusive with multiple choice) */}
                   {currentQuestionData.has_discursive_field && (
-                    <div className="space-y-2 mt-4 pt-4 border-t">
-                      <Label className="text-sm font-medium text-muted-foreground">
-                        Ou escreva sua resposta:
-                      </Label>
+                    <div className="mt-4 pt-4 border-t">
                       <Textarea
                         value={answers[`${currentQuestionId}_is_discursive`] === "true" ? (answers[currentQuestionId || ""] || "") : ""}
                         onChange={(e) => {
@@ -478,7 +475,7 @@ const PublicSurvey = () => {
                           newAnswers[currentQuestionId || ""] = "";
                           setAnswers(newAnswers);
                         }}
-                        placeholder="Digite sua resposta aqui..."
+                        placeholder={(currentQuestionData as any).discursive_placeholder || "Digite sua resposta aqui..."}
                         rows={4}
                         className="w-full"
                       />
