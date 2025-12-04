@@ -344,6 +344,7 @@ export type Database = {
       public_form_questions: {
         Row: {
           custom_options: Json | null
+          discursive_placeholder: string | null
           form_id: string | null
           has_discursive_field: boolean | null
           id: string | null
