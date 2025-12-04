@@ -29,13 +29,18 @@ interface Theme {
   ordem: number;
 }
 
+interface OptionItem {
+  type: 'choice' | 'discursive';
+  value: string;
+}
+
 interface Question {
   id: string;
   question_text: string;
   question_type: string;
   ordem: number | null;
   is_required?: boolean;
-  custom_options?: string[] | null;
+  custom_options?: OptionItem[] | null;
   theme_id?: string | null;
   has_discursive_field?: boolean;
   discursive_placeholder?: string | null;
@@ -117,19 +122,41 @@ const PublicSurvey = () => {
         console.error('Error fetching questions:', questionsError);
         setQuestions([]);
       } else {
-        const mappedQuestions: Question[] = (questionsData || []).map((q: any) => ({
-          id: q.id,
-          question_text: q.question_text,
-          question_type: q.question_type,
-          ordem: q.ordem ?? null,
-          is_required: q.is_required,
-          theme_id: q.theme_id,
-          has_discursive_field: q.has_discursive_field ?? false,
-          discursive_placeholder: q.discursive_placeholder,
-          custom_options: Array.isArray(q.custom_options)
-            ? (q.custom_options as string[])
-            : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
-        }));
+        const mappedQuestions: Question[] = (questionsData || []).map((q: any) => {
+          let customOptions: OptionItem[] | null = null;
+          
+          if (Array.isArray(q.custom_options) && q.custom_options.length > 0) {
+            // Check if it's new format (array of objects with type/value)
+            if (typeof q.custom_options[0] === 'object' && 'type' in q.custom_options[0]) {
+              customOptions = q.custom_options as OptionItem[];
+            } else {
+              // Old format - array of strings, migrate
+              customOptions = q.custom_options.map((opt: string) => ({
+                type: 'choice' as const,
+                value: opt
+              }));
+              // Add discursive if it existed
+              if (q.has_discursive_field) {
+                customOptions.push({
+                  type: 'discursive' as const,
+                  value: q.discursive_placeholder || "Digite sua resposta aqui..."
+                });
+              }
+            }
+          }
+
+          return {
+            id: q.id,
+            question_text: q.question_text,
+            question_type: q.question_type,
+            ordem: q.ordem ?? null,
+            is_required: q.is_required,
+            theme_id: q.theme_id,
+            has_discursive_field: q.has_discursive_field ?? false,
+            discursive_placeholder: q.discursive_placeholder,
+            custom_options: customOptions
+          };
+        });
         console.log('📋 Perguntas carregadas:', mappedQuestions);
         setQuestions(mappedQuestions);
       }
@@ -307,18 +334,10 @@ const PublicSurvey = () => {
   const totalQuestions = questions.length;
   const currentQuestionNumber = currentQuestionData ? questions.findIndex(q => q.id === currentQuestionId) + 1 : 0;
   
-  // Determine response options based on form type
-  const getResponseOptions = () => {
-    if (form?.form_type === "custom" && currentQuestionData?.custom_options && currentQuestionData.custom_options.length > 0) {
-      return currentQuestionData.custom_options.map((opt, idx) => ({
-        value: opt,
-        label: opt
-      }));
-    }
-    return responseOptions;
-  };
-
-  const displayOptions = getResponseOptions();
+  // Check if we have the new format options
+  const hasNewFormatOptions = form?.form_type === "custom" && 
+    currentQuestionData?.custom_options && 
+    currentQuestionData.custom_options.length > 0;
 
   // Se o item atual é um tema, renderizar a página de tema
   if (currentThemeData) {
@@ -345,6 +364,56 @@ const PublicSurvey = () => {
       </div>
     );
   }
+
+  // Render option based on type
+  const renderOption = (option: OptionItem, idx: number, isDiscursiveMode: boolean) => {
+    if (option.type === 'discursive') {
+      return (
+        <div 
+          key={`discursive-${idx}`}
+          className="flex items-start space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors border-border"
+        >
+          <Textarea
+            value={isDiscursiveMode ? (answers[currentQuestionId || ""] || "") : ""}
+            onChange={(e) => {
+              const newAnswers = { ...answers };
+              newAnswers[currentQuestionId || ""] = e.target.value;
+              newAnswers[`${currentQuestionId}_is_discursive`] = "true";
+              setAnswers(newAnswers);
+            }}
+            onFocus={() => {
+              // When focusing the textarea, switch to discursive mode
+              const newAnswers = { ...answers };
+              newAnswers[`${currentQuestionId}_is_discursive`] = "true";
+              newAnswers[currentQuestionId || ""] = "";
+              setAnswers(newAnswers);
+            }}
+            placeholder={option.value || "Digite sua resposta aqui..."}
+            rows={1}
+            className="w-full min-h-0 py-0 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none"
+          />
+        </div>
+      );
+    }
+
+    // Choice option
+    const isSelected = !isDiscursiveMode && answers[currentQuestionId || ""] === option.value;
+    
+    return (
+      <div 
+        key={`${option.value}-${idx}`}
+        className={`flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${isSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
+      >
+        <RadioGroupItem value={option.value} id={`${option.value}-${idx}`} />
+        <Label 
+          htmlFor={`${option.value}-${idx}`}
+          className={`cursor-pointer font-medium ${isSelected ? 'text-primary' : ''}`}
+        >
+          {option.value}
+        </Label>
+      </div>
+    );
+  };
 
   // Se chegou aqui, é uma pergunta
   return (
@@ -397,9 +466,26 @@ const PublicSurvey = () => {
                     className="w-full"
                   />
                 </div>
+              ) : hasNewFormatOptions ? (
+                // New format: render options in order (mixed choice and discursive)
+                <RadioGroup
+                  value={answers[`${currentQuestionId}_is_discursive`] === "true" ? "" : (answers[currentQuestionId || ""] || "")}
+                  onValueChange={(value) => {
+                    const newAnswers = { ...answers };
+                    newAnswers[currentQuestionId || ""] = value;
+                    // Clear discursive mode when selecting an option
+                    delete newAnswers[`${currentQuestionId}_is_discursive`];
+                    setAnswers(newAnswers);
+                  }}
+                >
+                  {currentQuestionData.custom_options!.map((option, idx) => {
+                    const isDiscursiveMode = answers[`${currentQuestionId}_is_discursive`] === "true";
+                    return renderOption(option, idx, isDiscursiveMode);
+                  })}
+                </RadioGroup>
               ) : (
+                // Standard form: fixed options
                 <>
-                  {/* Multiple choice options */}
                   <RadioGroup
                     value={currentQuestionData.has_discursive_field && answers[`${currentQuestionId}_is_discursive`] === "true" ? "" : (answers[currentQuestionId || ""] || "")}
                     onValueChange={(value) => {
@@ -412,17 +498,16 @@ const PublicSurvey = () => {
                       setAnswers(newAnswers);
                     }}
                   >
-                    {displayOptions.map((option, idx) => {
+                    {responseOptions.map((option, idx) => {
                       const isDiscursiveMode = currentQuestionData.has_discursive_field && answers[`${currentQuestionId}_is_discursive`] === "true";
                       const isSelected = !isDiscursiveMode && answers[currentQuestionId || ""] === option.value;
-                      const isStandardForm = form?.form_type !== "custom";
                       
-                      // Apply color coding only for standard forms
+                      // Apply color coding for standard forms
                       let borderClass = 'border-border';
                       let bgClass = '';
                       let textClass = '';
                       
-                      if (isSelected && isStandardForm) {
+                      if (isSelected) {
                         if (option.value === 'muito_satisfeito') {
                           borderClass = 'border-very-satisfied';
                           bgClass = 'bg-very-satisfied/10';
@@ -436,10 +521,6 @@ const PublicSurvey = () => {
                           bgClass = 'bg-unsatisfied/10';
                           textClass = 'text-unsatisfied';
                         }
-                      } else if (isSelected) {
-                        borderClass = 'border-primary';
-                        bgClass = 'bg-primary/10';
-                        textClass = 'text-primary';
                       }
                       
                       return (
@@ -459,7 +540,7 @@ const PublicSurvey = () => {
                     })}
                   </RadioGroup>
                   
-                  {/* Discursive alternative (mutually exclusive with multiple choice) */}
+                  {/* Discursive alternative for standard form with discursive field */}
                   {currentQuestionData.has_discursive_field && (
                     <div className="flex items-start space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors border-border">
                       <Textarea

@@ -11,13 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Loader2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+
+interface OptionItem {
+  type: 'choice' | 'discursive';
+  value: string;
+}
 
 interface FormItem {
   id: string;
@@ -36,9 +41,7 @@ interface Question extends FormItem {
   text: string;
   questionType: string;
   isRequired: boolean;
-  customOptions: string[];
-  hasDiscursiveField: boolean;
-  discursivePlaceholder: string;
+  customOptions: OptionItem[];
 }
 
 interface CreateFormDialogProps {
@@ -69,7 +72,28 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
         const draft = JSON.parse(savedDraft);
         setFormType(draft.formType);
         setFormData(draft.formData);
-        setItems(draft.items || []);
+        // Migrate old format to new format if needed
+        const migratedItems = (draft.items || []).map((item: any) => {
+          if (item.type === 'question' && Array.isArray(item.customOptions)) {
+            // Check if it's old format (array of strings)
+            if (item.customOptions.length > 0 && typeof item.customOptions[0] === 'string') {
+              const newOptions: OptionItem[] = item.customOptions.map((opt: string) => ({
+                type: 'choice' as const,
+                value: opt
+              }));
+              // Add discursive if it existed
+              if (item.hasDiscursiveField) {
+                newOptions.push({
+                  type: 'discursive' as const,
+                  value: item.discursivePlaceholder || "Digite sua resposta aqui..."
+                });
+              }
+              return { ...item, customOptions: newOptions };
+            }
+          }
+          return item;
+        });
+        setItems(migratedItems);
       } catch (error) {
         console.error('Erro ao carregar rascunho:', error);
       }
@@ -105,9 +129,7 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       text: "",
       questionType: "likert",
       isRequired: true,
-      customOptions: formType === "custom" ? [""] : [],
-      hasDiscursiveField: false,
-      discursivePlaceholder: "Digite sua resposta aqui..."
+      customOptions: formType === "custom" ? [{ type: 'choice', value: "" }] : []
     };
     setItems([...items, newQuestion]);
   };
@@ -152,25 +174,24 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     ));
   };
 
-  const updateQuestionType = (id: string, questionType: 'text' | 'likert') => {
-    setItems(items.map(item => 
-      item.id === id && item.type === 'question' ? { ...item, questionType } : item
-    ));
-  };
-
-  const addCustomOption = (questionId: string) => {
-    setItems(items.map(item => 
-      item.id === questionId && item.type === 'question' 
-        ? { ...item, customOptions: [...item.customOptions, ""] } 
-        : item
-    ));
+  const addCustomOption = (questionId: string, optionType: 'choice' | 'discursive') => {
+    setItems(items.map(item => {
+      if (item.id === questionId && item.type === 'question') {
+        const defaultValue = optionType === 'discursive' ? "Digite sua resposta aqui..." : "";
+        return { 
+          ...item, 
+          customOptions: [...item.customOptions, { type: optionType, value: defaultValue }] 
+        };
+      }
+      return item;
+    }));
   };
 
   const updateCustomOption = (questionId: string, optionIndex: number, value: string) => {
     setItems(items.map(item => {
       if (item.id === questionId && item.type === 'question') {
         const newOptions = [...item.customOptions];
-        newOptions[optionIndex] = value;
+        newOptions[optionIndex] = { ...newOptions[optionIndex], value };
         return { ...item, customOptions: newOptions };
       }
       return item;
@@ -186,12 +207,28 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
     }));
   };
 
-  const toggleDiscursiveField = (questionId: string) => {
-    setItems(items.map(item => 
-      item.id === questionId && item.type === 'question' 
-        ? { ...item, hasDiscursiveField: !item.hasDiscursiveField } 
-        : item
-    ));
+  const moveOptionUp = (questionId: string, optionIndex: number) => {
+    if (optionIndex === 0) return;
+    setItems(items.map(item => {
+      if (item.id === questionId && item.type === 'question') {
+        const newOptions = [...item.customOptions];
+        [newOptions[optionIndex - 1], newOptions[optionIndex]] = [newOptions[optionIndex], newOptions[optionIndex - 1]];
+        return { ...item, customOptions: newOptions };
+      }
+      return item;
+    }));
+  };
+
+  const moveOptionDown = (questionId: string, optionIndex: number) => {
+    setItems(items.map(item => {
+      if (item.id === questionId && item.type === 'question') {
+        if (optionIndex >= item.customOptions.length - 1) return item;
+        const newOptions = [...item.customOptions];
+        [newOptions[optionIndex], newOptions[optionIndex + 1]] = [newOptions[optionIndex + 1], newOptions[optionIndex]];
+        return { ...item, customOptions: newOptions };
+      }
+      return item;
+    }));
   };
 
   const resetForm = () => {
@@ -285,8 +322,8 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       if (formType === "custom") {
         for (const question of validQuestions) {
           if (question.questionType === 'likert') {
-            const validOptions = (question.customOptions || []).filter(opt => opt.trim());
-            if (validOptions.length < 2) {
+            const choiceOptions = question.customOptions.filter(opt => opt.type === 'choice' && opt.value.trim());
+            if (choiceOptions.length < 2) {
               toast({
                 title: "Erro",
                 description: "Cada pergunta personalizada do tipo múltipla escolha deve ter pelo menos 2 opções de resposta.",
@@ -369,8 +406,12 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
       // Create questions
       const questionsToInsert = validQuestions.map(question => {
         const isLikert = question.questionType === 'likert';
-        const cleanedOptions = isLikert && formType === "custom" && Array.isArray(question.customOptions)
-          ? question.customOptions.filter(opt => opt.trim())
+        const hasDiscursive = question.customOptions.some(opt => opt.type === 'discursive');
+        const discursiveOption = question.customOptions.find(opt => opt.type === 'discursive');
+
+        // Convert to JSON-compatible format for database
+        const optionsForDb = isLikert && formType === "custom" 
+          ? question.customOptions.map(opt => ({ type: opt.type, value: opt.value }))
           : null;
 
         return {
@@ -380,9 +421,9 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
           ordem: question.ordem + 1,
           admin_user_id: adminUser.id,
           is_required: question.isRequired,
-          custom_options: cleanedOptions,
-          has_discursive_field: isLikert ? (question.hasDiscursiveField || false) : false,
-          discursive_placeholder: question.discursivePlaceholder || "Digite sua resposta aqui..."
+          custom_options: optionsForDb,
+          has_discursive_field: hasDiscursive,
+          discursive_placeholder: discursiveOption?.value || "Digite sua resposta aqui..."
         };
       });
 
@@ -652,87 +693,81 @@ export const CreateFormDialog = ({ isOpen, onOpenChange, onFormCreated }: Create
                           </div>
                         </div>
                         
-                        {item.questionType === "discursive" ? (
-                          <div className="p-3 bg-muted rounded-md">
-                            <p className="text-sm text-muted-foreground italic">
-                              Campo de resposta discursiva - Os participantes poderão escrever livremente
-                            </p>
-                          </div>
-                        ) : (
-                          <Textarea
-                            value={item.text}
-                            onChange={(e) => updateQuestion(item.id, e.target.value)}
-                            placeholder="Digite sua pergunta..."
-                            rows={2}
-                            disabled={isLoading}
-                          />
-                        )}
+                        <Textarea
+                          value={item.text}
+                          onChange={(e) => updateQuestion(item.id, e.target.value)}
+                          placeholder="Digite sua pergunta..."
+                          rows={2}
+                          disabled={isLoading}
+                        />
 
-                        {formType === "custom" && item.questionType !== "discursive" && (
+                        {formType === "custom" && (
                           <div className="space-y-2 pl-4 border-l-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-sm">Opções de Resposta</Label>
                               <div className="flex gap-2">
                                 <Button
-                                  onClick={() => addCustomOption(item.id)}
+                                  onClick={() => addCustomOption(item.id, 'choice')}
                                   variant="ghost"
                                   size="sm"
                                   disabled={isLoading}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Adicionar Opção
+                                  Múltipla Escolha
                                 </Button>
                                 <Button
-                                  onClick={() => toggleDiscursiveField(item.id)}
-                                  variant={item.hasDiscursiveField ? "default" : "ghost"}
+                                  onClick={() => addCustomOption(item.id, 'discursive')}
+                                  variant="ghost"
                                   size="sm"
                                   disabled={isLoading}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  {item.hasDiscursiveField ? "Remover Discursiva" : "Adicionar Discursiva"}
+                                  Discursiva
                                 </Button>
                               </div>
                             </div>
                             {Array.isArray(item.customOptions) && item.customOptions.map((option, optIndex) => (
-                              <div key={optIndex} className="flex items-center gap-2">
-                                <Badge variant="outline" className="px-2">
-                                  {optIndex + 1}
+                              <div key={optIndex} className={`flex items-center gap-2 ${option.type === 'discursive' ? 'bg-muted/50 p-2 rounded-md' : ''}`}>
+                                <Badge variant={option.type === 'discursive' ? 'secondary' : 'outline'} className="px-2 shrink-0">
+                                  {option.type === 'discursive' ? '✏️' : optIndex + 1}
                                 </Badge>
                                 <Input
-                                  value={option}
+                                  value={option.value}
                                   onChange={(e) => updateCustomOption(item.id, optIndex, e.target.value)}
-                                  placeholder={`Opção ${optIndex + 1}`}
+                                  placeholder={option.type === 'discursive' ? "Texto placeholder da discursiva..." : `Opção ${optIndex + 1}`}
                                   disabled={isLoading}
+                                  className={option.type === 'discursive' ? 'italic' : ''}
                                 />
-                                {Array.isArray(item.customOptions) && item.customOptions.length > 1 && (
+                                <div className="flex gap-0.5 shrink-0">
                                   <Button
-                                    onClick={() => removeCustomOption(item.id, optIndex)}
+                                    onClick={() => moveOptionUp(item.id, optIndex)}
                                     variant="ghost"
                                     size="sm"
-                                    disabled={isLoading}
+                                    disabled={optIndex === 0 || isLoading}
                                   >
-                                    <X className="h-4 w-4" />
+                                    <ArrowUp className="h-3 w-3" />
                                   </Button>
-                                )}
+                                  <Button
+                                    onClick={() => moveOptionDown(item.id, optIndex)}
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={optIndex === item.customOptions.length - 1 || isLoading}
+                                  >
+                                    <ArrowDown className="h-3 w-3" />
+                                  </Button>
+                                  {item.customOptions.length > 1 && (
+                                    <Button
+                                      onClick={() => removeCustomOption(item.id, optIndex)}
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={isLoading}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             ))}
-                            {item.hasDiscursiveField && (
-                              <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed space-y-2">
-                                <p className="text-sm text-muted-foreground italic">
-                                  ✏️ Campo de resposta discursiva incluído
-                                </p>
-                                <Input
-                                  value={item.discursivePlaceholder}
-                                  onChange={(e) => setItems(items.map(i => 
-                                    i.id === item.id && i.type === 'question' 
-                                      ? { ...i, discursivePlaceholder: e.target.value } 
-                                      : i
-                                  ))}
-                                  placeholder="Texto placeholder da resposta..."
-                                  disabled={isLoading}
-                                />
-                              </div>
-                            )}
                           </div>
                         )}
 
