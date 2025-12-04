@@ -7,12 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, ArrowLeft, Loader2, X } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Loader2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+
+interface OptionItem {
+  type: 'choice' | 'discursive';
+  value: string;
+}
 
 interface Question {
   id: string;
@@ -21,7 +26,7 @@ interface Question {
   ordem: number | null;
   form_id: string;
   is_required: boolean;
-  custom_options: string[] | null;
+  custom_options: OptionItem[] | null;
   theme_id?: string | null;
   isNew?: boolean;
   has_discursive_field?: boolean;
@@ -130,14 +135,38 @@ const EditForm = () => {
       }));
       setThemes(mappedThemes);
       
-      // Map questions to include new fields with defaults
-      const mappedQuestions: Question[] = Array.isArray(questionsData) ? questionsData.map((q: any) => ({
-        ...q,
-        is_required: q.is_required ?? true,
-        custom_options: Array.isArray(q.custom_options) ? q.custom_options : null,
-        has_discursive_field: q.has_discursive_field ?? false,
-        discursive_placeholder: q.discursive_placeholder || "Digite sua resposta aqui..."
-      })) : [];
+      // Map questions - migrate old format to new format
+      const mappedQuestions: Question[] = Array.isArray(questionsData) ? questionsData.map((q: any) => {
+        let customOptions: OptionItem[] | null = null;
+        
+        if (Array.isArray(q.custom_options)) {
+          // Check if it's new format (array of objects with type/value)
+          if (q.custom_options.length > 0 && typeof q.custom_options[0] === 'object' && 'type' in q.custom_options[0]) {
+            customOptions = q.custom_options as OptionItem[];
+          } else {
+            // Old format - array of strings, migrate
+            customOptions = q.custom_options.map((opt: string) => ({
+              type: 'choice' as const,
+              value: opt
+            }));
+            // Add discursive if it existed
+            if (q.has_discursive_field) {
+              customOptions.push({
+                type: 'discursive' as const,
+                value: q.discursive_placeholder || "Digite sua resposta aqui..."
+              });
+            }
+          }
+        }
+
+        return {
+          ...q,
+          is_required: q.is_required ?? true,
+          custom_options: customOptions,
+          has_discursive_field: q.has_discursive_field ?? false,
+          discursive_placeholder: q.discursive_placeholder || "Digite sua resposta aqui..."
+        };
+      }) : [];
       
       setQuestions(mappedQuestions);
       
@@ -191,7 +220,7 @@ const EditForm = () => {
       ordem: themes.length + questions.length + 1,
       form_id: id!,
       is_required: true,
-      custom_options: formData.form_type === "custom" ? [""] : null,
+      custom_options: formData.form_type === "custom" ? [{ type: 'choice', value: "" }] : null,
       isNew: true,
       has_discursive_field: false
     };
@@ -211,12 +240,6 @@ const EditForm = () => {
       has_discursive_field: false
     };
     setQuestions([...questions, newQuestion]);
-  };
-
-  const toggleDiscursiveField = (questionId: string) => {
-    setQuestions(questions.map(q => 
-      q.id === questionId ? { ...q, has_discursive_field: !q.has_discursive_field } : q
-    ));
   };
 
   const updateQuestionType = (questionId: string, type: string) => {
@@ -243,11 +266,12 @@ const EditForm = () => {
     ));
   };
 
-  const addCustomOption = (questionId: string) => {
+  const addCustomOption = (questionId: string, optionType: 'choice' | 'discursive') => {
     setQuestions(questions.map(q => {
       if (q.id === questionId) {
         const currentOptions = q.custom_options || [];
-        return { ...q, custom_options: [...currentOptions, ""] };
+        const defaultValue = optionType === 'discursive' ? "Digite sua resposta aqui..." : "";
+        return { ...q, custom_options: [...currentOptions, { type: optionType, value: defaultValue }] };
       }
       return q;
     }));
@@ -257,7 +281,7 @@ const EditForm = () => {
     setQuestions(questions.map(q => {
       if (q.id === questionId && q.custom_options) {
         const newOptions = [...q.custom_options];
-        newOptions[optionIndex] = value;
+        newOptions[optionIndex] = { ...newOptions[optionIndex], value };
         return { ...q, custom_options: newOptions };
       }
       return q;
@@ -268,6 +292,30 @@ const EditForm = () => {
     setQuestions(questions.map(q => {
       if (q.id === questionId && q.custom_options && q.custom_options.length > 1) {
         return { ...q, custom_options: q.custom_options.filter((_, i) => i !== optionIndex) };
+      }
+      return q;
+    }));
+  };
+
+  const moveOptionUp = (questionId: string, optionIndex: number) => {
+    if (optionIndex === 0) return;
+    setQuestions(questions.map(q => {
+      if (q.id === questionId && q.custom_options) {
+        const newOptions = [...q.custom_options];
+        [newOptions[optionIndex - 1], newOptions[optionIndex]] = [newOptions[optionIndex], newOptions[optionIndex - 1]];
+        return { ...q, custom_options: newOptions };
+      }
+      return q;
+    }));
+  };
+
+  const moveOptionDown = (questionId: string, optionIndex: number) => {
+    setQuestions(questions.map(q => {
+      if (q.id === questionId && q.custom_options) {
+        if (optionIndex >= q.custom_options.length - 1) return q;
+        const newOptions = [...q.custom_options];
+        [newOptions[optionIndex], newOptions[optionIndex + 1]] = [newOptions[optionIndex + 1], newOptions[optionIndex]];
+        return { ...q, custom_options: newOptions };
       }
       return q;
     }));
@@ -400,8 +448,12 @@ const EditForm = () => {
       for (const question of existingQuestions) {
         if (question.question_text.trim()) {
           const isLikert = question.question_type === 'likert';
-          const cleanedOptions = isLikert && formData.form_type === "custom" && Array.isArray(question.custom_options)
-            ? question.custom_options.filter(opt => opt.trim())
+          const hasDiscursive = question.custom_options?.some(opt => opt.type === 'discursive') ?? false;
+          const discursiveOption = question.custom_options?.find(opt => opt.type === 'discursive');
+          
+          // Convert to JSON-compatible format for database
+          const optionsForDb = isLikert && formData.form_type === "custom" && question.custom_options
+            ? question.custom_options.map(opt => ({ type: opt.type, value: opt.value }))
             : null;
 
           const { error: updateError } = await supabase
@@ -411,9 +463,9 @@ const EditForm = () => {
               question_type: isLikert ? 'likert' : 'text',
               ordem: questions.indexOf(question) + 1,
               is_required: question.is_required,
-              custom_options: cleanedOptions,
-              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false,
-              discursive_placeholder: question.discursive_placeholder || "Digite sua resposta aqui..."
+              custom_options: optionsForDb,
+              has_discursive_field: hasDiscursive,
+              discursive_placeholder: discursiveOption?.value || "Digite sua resposta aqui..."
             })
             .eq('id', question.id);
 
@@ -429,8 +481,12 @@ const EditForm = () => {
           .filter(q => q.question_text.trim())
           .map((question, index) => {
             const isLikert = question.question_type === 'likert';
-            const cleanedOptions = isLikert && formData.form_type === "custom" && Array.isArray(question.custom_options)
-              ? question.custom_options.filter(opt => opt.trim())
+            const hasDiscursive = question.custom_options?.some(opt => opt.type === 'discursive') ?? false;
+            const discursiveOption = question.custom_options?.find(opt => opt.type === 'discursive');
+            
+            // Convert to JSON-compatible format for database
+            const optionsForDb = isLikert && formData.form_type === "custom" && question.custom_options
+              ? question.custom_options.map(opt => ({ type: opt.type, value: opt.value }))
               : null;
 
             return {
@@ -440,9 +496,9 @@ const EditForm = () => {
               ordem: existingQuestions.length + index + 1,
               admin_user_id: user?.id || '',
               is_required: question.is_required,
-              custom_options: cleanedOptions,
-              has_discursive_field: isLikert ? (question.has_discursive_field || false) : false,
-              discursive_placeholder: question.discursive_placeholder || "Digite sua resposta aqui..."
+              custom_options: optionsForDb,
+              has_discursive_field: hasDiscursive,
+              discursive_placeholder: discursiveOption?.value || "Digite sua resposta aqui..."
             };
           });
 
@@ -689,71 +745,73 @@ const EditForm = () => {
                       </div>
                     )}
 
-                    {formData.form_type === "custom" && question.question_type !== "discursive" && question.question_type !== "text" && question.custom_options && (
+                    {formData.form_type === "custom" && question.question_type !== "discursive" && question.question_type !== "text" && (
                       <div className="space-y-2 pl-4 border-l-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm">Opções de Resposta</Label>
                           <div className="flex gap-2">
                             <Button
-                              onClick={() => addCustomOption(question.id)}
+                              onClick={() => addCustomOption(question.id, 'choice')}
                               variant="ghost"
                               size="sm"
                               disabled={isSaving}
                             >
                               <Plus className="h-3 w-3 mr-1" />
-                              Adicionar Opção
+                              Múltipla Escolha
                             </Button>
                             <Button
-                              onClick={() => toggleDiscursiveField(question.id)}
-                              variant={question.has_discursive_field ? "default" : "ghost"}
+                              onClick={() => addCustomOption(question.id, 'discursive')}
+                              variant="ghost"
                               size="sm"
                               disabled={isSaving}
                             >
                               <Plus className="h-3 w-3 mr-1" />
-                              {question.has_discursive_field ? "Remover Discursiva" : "Adicionar Discursiva"}
+                              Discursiva
                             </Button>
                           </div>
                         </div>
                         {Array.isArray(question.custom_options) && question.custom_options.map((option, optIndex) => (
-                          <div key={optIndex} className="flex items-center gap-2">
-                            <Badge variant="outline" className="px-2">
-                              {optIndex + 1}
+                          <div key={optIndex} className={`flex items-center gap-2 ${option.type === 'discursive' ? 'bg-muted/50 p-2 rounded-md' : ''}`}>
+                            <Badge variant={option.type === 'discursive' ? 'secondary' : 'outline'} className="px-2 shrink-0">
+                              {option.type === 'discursive' ? '✏️' : optIndex + 1}
                             </Badge>
                             <Input
-                              value={option}
+                              value={option.value}
                               onChange={(e) => updateCustomOption(question.id, optIndex, e.target.value)}
-                              placeholder={`Opção ${optIndex + 1}`}
+                              placeholder={option.type === 'discursive' ? "Texto placeholder da discursiva..." : `Opção ${optIndex + 1}`}
                               disabled={isSaving}
+                              className={option.type === 'discursive' ? 'italic' : ''}
                             />
-                            {question.custom_options && question.custom_options.length > 1 && (
+                            <div className="flex gap-0.5 shrink-0">
                               <Button
-                                onClick={() => removeCustomOption(question.id, optIndex)}
+                                onClick={() => moveOptionUp(question.id, optIndex)}
                                 variant="ghost"
                                 size="sm"
-                                disabled={isSaving}
+                                disabled={optIndex === 0 || isSaving}
                               >
-                                <X className="h-4 w-4" />
+                                <ArrowUp className="h-3 w-3" />
                               </Button>
-                            )}
+                              <Button
+                                onClick={() => moveOptionDown(question.id, optIndex)}
+                                variant="ghost"
+                                size="sm"
+                                disabled={optIndex === (question.custom_options?.length ?? 0) - 1 || isSaving}
+                              >
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
+                              {question.custom_options && question.custom_options.length > 1 && (
+                                <Button
+                                  onClick={() => removeCustomOption(question.id, optIndex)}
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isSaving}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
-                        {question.has_discursive_field && (
-                          <div className="mt-3 p-3 bg-muted/50 rounded-md border border-dashed space-y-2">
-                            <p className="text-sm text-muted-foreground italic">
-                              ✏️ Campo de resposta discursiva incluído
-                            </p>
-                            <Input
-                              value={question.discursive_placeholder || ""}
-                              onChange={(e) => setQuestions(questions.map(q => 
-                                q.id === question.id 
-                                  ? { ...q, discursive_placeholder: e.target.value } 
-                                  : q
-                              ))}
-                              placeholder="Texto placeholder da resposta..."
-                              disabled={isSaving}
-                            />
-                          </div>
-                        )}
                       </div>
                     )}
 
