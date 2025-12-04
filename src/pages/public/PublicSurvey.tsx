@@ -38,6 +38,7 @@ interface Question {
   custom_options?: string[] | null;
   theme_id?: string | null;
   has_discursive_field?: boolean;
+  discursive_placeholder?: string | null;
 }
 
 const responseOptions = [
@@ -124,6 +125,7 @@ const PublicSurvey = () => {
           is_required: q.is_required,
           theme_id: q.theme_id,
           has_discursive_field: q.has_discursive_field ?? false,
+          discursive_placeholder: q.discursive_placeholder,
           custom_options: Array.isArray(q.custom_options)
             ? (q.custom_options as string[])
             : (typeof q.custom_options === 'string' ? [q.custom_options] : [])
@@ -475,7 +477,7 @@ const PublicSurvey = () => {
                           newAnswers[currentQuestionId || ""] = "";
                           setAnswers(newAnswers);
                         }}
-                        placeholder={(currentQuestionData as any).discursive_placeholder || "Digite sua resposta aqui..."}
+                        placeholder={currentQuestionData.discursive_placeholder || "Digite sua resposta aqui..."}
                         rows={4}
                         className="w-full"
                       />
