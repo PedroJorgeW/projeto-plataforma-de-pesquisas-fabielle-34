@@ -646,7 +646,7 @@ const Results = () => {
                       <div className="space-y-3">
                         {formResults.questions[selectedQuestion].responses.map((response, responseIndex) => (
                           <div key={responseIndex} className="flex justify-between items-center p-3 border border-border rounded-lg">
-                            <span className="font-medium">{formatOptionLabel(response.option)}</span>
+                            <span className="font-medium">{truncateChartLabel(formatOptionLabel(response.option))}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-2xl font-bold">{response.count}</span>
                               <span className="text-sm text-muted-foreground">({response.percentage}%)</span>
