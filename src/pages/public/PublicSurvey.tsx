@@ -255,13 +255,26 @@ const PublicSurvey = () => {
       const currentQ = currentItem.data;
       const qId = currentQ?.id;
       
-      if (qId && currentQ?.is_required !== false && !answers[qId]) {
-        toast({
-          title: "Resposta obrigatória",
-          description: "Por favor, selecione uma resposta para continuar.",
-          variant: "destructive",
+      if (qId && currentQ?.is_required !== false) {
+        // Check for choice answer
+        const hasChoiceAnswer = !!answers[qId];
+        
+        // Check for discursive answer (new indexed format)
+        let hasDiscursiveAnswer = false;
+        Object.keys(answers).forEach(key => {
+          if (key.startsWith(`${qId}_discursive_`) && answers[key]?.trim()) {
+            hasDiscursiveAnswer = true;
+          }
         });
-        return;
+        
+        if (!hasChoiceAnswer && !hasDiscursiveAnswer) {
+          toast({
+            title: "Resposta obrigatória",
+            description: "Por favor, selecione uma resposta para continuar.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -289,7 +302,20 @@ const PublicSurvey = () => {
     }
 
     // Validação final: apenas perguntas obrigatórias devem estar respondidas
-    const missing = questions.filter(q => q.is_required !== false && !answers[q.id]);
+    const missing = questions.filter(q => {
+      if (q.is_required === false) return false;
+      
+      // Check for choice answer
+      if (answers[q.id]) return false;
+      
+      // Check for discursive answer (new indexed format)
+      const hasDiscursive = Object.keys(answers).some(key => 
+        key.startsWith(`${q.id}_discursive_`) && answers[key]?.trim()
+      );
+      
+      return !hasDiscursive;
+    });
+    
     if (missing.length > 0) {
       const firstMissingQuestionId = missing[0].id;
       const navIndex = navigationItems.findIndex(
