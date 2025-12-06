@@ -308,7 +308,18 @@ const PublicSurvey = () => {
     const processedAnswers: Record<string, string> = {};
     questions.forEach(q => {
       const mainAnswer = answers[q.id];
-      const discursiveAnswer = answers[`${q.id}_discursive`];
+      
+      // Check for discursive answer in new format (indexed discursive fields)
+      let discursiveAnswer = "";
+      Object.keys(answers).forEach(key => {
+        if (key.startsWith(`${q.id}_discursive_`) && answers[key]) {
+          discursiveAnswer = answers[key];
+        }
+      });
+      // Also check old format
+      if (!discursiveAnswer && answers[`${q.id}_discursive`]) {
+        discursiveAnswer = answers[`${q.id}_discursive`];
+      }
       
       if (mainAnswer || discursiveAnswer) {
         let combinedAnswer = mainAnswer || "";
@@ -366,26 +377,47 @@ const PublicSurvey = () => {
   }
 
   // Render option based on type
-  const renderOption = (option: OptionItem, idx: number, isDiscursiveMode: boolean) => {
+  const renderOption = (option: OptionItem, idx: number, activeDiscursiveIdx: number | null) => {
     if (option.type === 'discursive') {
+      const discursiveKey = `${currentQuestionId}_discursive_${idx}`;
+      const isThisDiscursiveActive = activeDiscursiveIdx === idx;
+      
       return (
         <div 
           key={`discursive-${idx}`}
-          className="flex items-start space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors border-border"
+          className={`flex items-start space-x-2 p-3 border rounded-lg hover:bg-accent transition-colors ${isThisDiscursiveActive ? 'border-primary bg-primary/10' : 'border-border'}`}
         >
           <Textarea
-            value={isDiscursiveMode ? (answers[currentQuestionId || ""] || "") : ""}
+            value={answers[discursiveKey] || ""}
             onChange={(e) => {
               const newAnswers = { ...answers };
-              newAnswers[currentQuestionId || ""] = e.target.value;
-              newAnswers[`${currentQuestionId}_is_discursive`] = "true";
+              // Clear any previous answer
+              newAnswers[currentQuestionId || ""] = "";
+              delete newAnswers[`${currentQuestionId}_active_discursive`];
+              // Clear other discursive fields for this question
+              Object.keys(newAnswers).forEach(key => {
+                if (key.startsWith(`${currentQuestionId}_discursive_`) && key !== discursiveKey) {
+                  delete newAnswers[key];
+                }
+              });
+              // Set value for this specific discursive field
+              newAnswers[discursiveKey] = e.target.value;
+              if (e.target.value) {
+                newAnswers[`${currentQuestionId}_active_discursive`] = String(idx);
+              }
               setAnswers(newAnswers);
             }}
             onFocus={() => {
-              // When focusing the textarea, switch to discursive mode
               const newAnswers = { ...answers };
-              newAnswers[`${currentQuestionId}_is_discursive`] = "true";
+              // Clear choice selection
               newAnswers[currentQuestionId || ""] = "";
+              // Clear other discursive fields
+              Object.keys(newAnswers).forEach(key => {
+                if (key.startsWith(`${currentQuestionId}_discursive_`) && key !== discursiveKey) {
+                  delete newAnswers[key];
+                }
+              });
+              newAnswers[`${currentQuestionId}_active_discursive`] = String(idx);
               setAnswers(newAnswers);
             }}
             placeholder={option.value || "Digite sua resposta aqui..."}
@@ -397,7 +429,7 @@ const PublicSurvey = () => {
     }
 
     // Choice option
-    const isSelected = !isDiscursiveMode && answers[currentQuestionId || ""] === option.value;
+    const isSelected = activeDiscursiveIdx === null && answers[currentQuestionId || ""] === option.value;
     
     return (
       <div 
@@ -469,18 +501,25 @@ const PublicSurvey = () => {
               ) : hasNewFormatOptions ? (
                 // New format: render options in order (mixed choice and discursive)
                 <RadioGroup
-                  value={answers[`${currentQuestionId}_is_discursive`] === "true" ? "" : (answers[currentQuestionId || ""] || "")}
+                  value={answers[`${currentQuestionId}_active_discursive`] ? "" : (answers[currentQuestionId || ""] || "")}
                   onValueChange={(value) => {
                     const newAnswers = { ...answers };
                     newAnswers[currentQuestionId || ""] = value;
-                    // Clear discursive mode when selecting an option
-                    delete newAnswers[`${currentQuestionId}_is_discursive`];
+                    // Clear all discursive fields for this question
+                    delete newAnswers[`${currentQuestionId}_active_discursive`];
+                    Object.keys(newAnswers).forEach(key => {
+                      if (key.startsWith(`${currentQuestionId}_discursive_`)) {
+                        delete newAnswers[key];
+                      }
+                    });
                     setAnswers(newAnswers);
                   }}
                 >
                   {currentQuestionData.custom_options!.map((option, idx) => {
-                    const isDiscursiveMode = answers[`${currentQuestionId}_is_discursive`] === "true";
-                    return renderOption(option, idx, isDiscursiveMode);
+                    const activeDiscursiveIdx = answers[`${currentQuestionId}_active_discursive`] !== undefined 
+                      ? parseInt(answers[`${currentQuestionId}_active_discursive`]) 
+                      : null;
+                    return renderOption(option, idx, activeDiscursiveIdx);
                   })}
                 </RadioGroup>
               ) : (
