@@ -85,6 +85,13 @@ const formatOptionLabel = (value: string) => {
   return clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
+// Helper to truncate text for chart labels (max 25 characters)
+const truncateChartLabel = (value: string, maxLength: number = 25) => {
+  if (!value) return 'Sem resposta';
+  if (value.length <= maxLength) return value;
+  return value.substring(0, maxLength) + '...';
+};
+
 const Results = () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<string>("");
@@ -557,7 +564,7 @@ const Results = () => {
                 <ResponsiveContainer width="100%" height={400}>
                   <RechartsBarChart data={formResults.data}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="name" tickFormatter={truncateChartLabel} />
                     <YAxis />
                     <Tooltip formatter={(value: number, name: string, props: any) => {
                       const total = formResults.data.reduce((sum, item) => sum + item.value, 0);
@@ -650,7 +657,7 @@ const Results = () => {
                       <ResponsiveContainer width="100%" height={200}>
                         <RechartsBarChart data={formResults.questions[selectedQuestion].responses}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="option" tickFormatter={formatOptionLabel} />
+                          <XAxis dataKey="option" tickFormatter={(value) => truncateChartLabel(formatOptionLabel(value))} />
                           <YAxis />
                           <Tooltip formatter={(value: number, name: string, props: any) => {
                             const questionData = formResults.questions[selectedQuestion];
