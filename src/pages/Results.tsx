@@ -85,11 +85,12 @@ const formatOptionLabel = (value: string) => {
   return clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
-// Helper to truncate text for chart labels (max 25 characters)
-const truncateChartLabel = (value: string, maxLength: number = 25) => {
+// Helper to truncate text for chart labels (max 25 characters, min 3 characters before "...")
+const truncateChartLabel = (value: string, maxLength: number = 25, minLength: number = 3) => {
   if (!value) return 'Sem resposta';
   if (value.length <= maxLength) return value;
-  return value.substring(0, maxLength) + '...';
+  const truncateLength = Math.max(minLength, maxLength);
+  return value.substring(0, truncateLength) + '...';
 };
 
 const Results = () => {
