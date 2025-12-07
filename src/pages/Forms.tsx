@@ -319,14 +319,16 @@ const Forms = () => {
         const sortedThemes = (form.form_themes || []).sort((a: any, b: any) => a.ordem - b.ordem);
 
         // Função para determinar o tema de uma pergunta baseado na ordem
+        // Perguntas herdam o tema que vem ANTES delas (menor ordem)
+        // Continua com o mesmo tema até aparecer um novo tema
+        // Só fica "Sem tema" se nenhum tema antecede a pergunta
         const getThemeForQuestion = (questionOrdem: number): string => {
           let currentTheme = 'Sem tema';
           for (const theme of sortedThemes) {
             if (theme.ordem < questionOrdem) {
               currentTheme = theme.title;
-            } else {
-              break;
             }
+            // Não usa break - continua para encontrar o último tema antes da pergunta
           }
           return currentTheme;
         };
