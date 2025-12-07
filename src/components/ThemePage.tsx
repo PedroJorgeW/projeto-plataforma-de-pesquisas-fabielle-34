@@ -23,7 +23,7 @@ const ThemePage = ({ title, description }: ThemePageProps) => {
             </h1>
             
             {description && (
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-muted-foreground mb-6 break-words">
                 {description}
               </p>
             )}
