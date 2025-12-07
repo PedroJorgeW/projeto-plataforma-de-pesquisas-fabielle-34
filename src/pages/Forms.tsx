@@ -276,18 +276,23 @@ const Forms = () => {
         description: "Aguarde enquanto preparamos os dados...",
       });
 
-      // Buscar todos os formulários com suas respostas
+      // Buscar todos os formulários com suas respostas e temas
       const { data: allForms, error: formsError } = await supabase
         .from('forms')
         .select(`
           id,
           title,
           form_type,
+          form_themes(
+            id,
+            title
+          ),
           questions(
             id,
             question_text,
             question_type,
-            custom_options
+            custom_options,
+            theme_id
           ),
           responses(
             id,
@@ -309,12 +314,23 @@ const Forms = () => {
         const formTitle = form.title;
         const formType = form.form_type === 'custom' ? 'Personalizado' : 'Padrão';
 
+        // Criar mapa de temas por ID
+        const themesMap = new Map<string, string>();
+        form.form_themes?.forEach((theme: any) => {
+          themesMap.set(theme.id, theme.title);
+        });
+
         // Agrupar respostas por pergunta e resposta
         const responseMap = new Map<string, Map<string, number>>();
+        const questionThemeMap = new Map<string, string>();
 
         form.questions?.forEach((question: any) => {
           const questionKey = `${question.id}|${question.question_text}`;
           responseMap.set(questionKey, new Map());
+          
+          // Mapear pergunta ao seu tema
+          const themeName = question.theme_id ? (themesMap.get(question.theme_id) || 'Sem tema') : 'Sem tema';
+          questionThemeMap.set(questionKey, themeName);
         });
 
         form.responses?.forEach((response: any) => {
@@ -335,12 +351,14 @@ const Forms = () => {
         // Converter para formato de linhas do Excel
         responseMap.forEach((answersMap, questionKey) => {
           const [, questionText] = questionKey.split('|');
+          const themeName = questionThemeMap.get(questionKey) || 'Sem tema';
           
           answersMap.forEach((count, answerText) => {
             aggregatedData.push({
               'ID do Formulário': formId,
               'Nome do Formulário': formTitle,
               'Tipo de Formulário': formType,
+              'Tema': themeName,
               'Pergunta': questionText,
               'Resposta': answerText,
               'Contagem de Respostas': count
@@ -369,6 +387,7 @@ const Forms = () => {
         { wch: 36 }, // ID do Formulário
         { wch: 30 }, // Nome do Formulário
         { wch: 20 }, // Tipo de Formulário
+        { wch: 25 }, // Tema
         { wch: maxWidth }, // Pergunta
         { wch: 30 }, // Resposta
         { wch: 20 }  // Contagem
