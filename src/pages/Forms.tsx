@@ -285,14 +285,15 @@ const Forms = () => {
           form_type,
           form_themes(
             id,
-            title
+            title,
+            ordem
           ),
           questions(
             id,
             question_text,
             question_type,
             custom_options,
-            theme_id
+            ordem
           ),
           responses(
             id,
@@ -314,11 +315,21 @@ const Forms = () => {
         const formTitle = form.title;
         const formType = form.form_type === 'custom' ? 'Personalizado' : 'Padrão';
 
-        // Criar mapa de temas por ID
-        const themesMap = new Map<string, string>();
-        form.form_themes?.forEach((theme: any) => {
-          themesMap.set(theme.id, theme.title);
-        });
+        // Ordenar temas por ordem
+        const sortedThemes = (form.form_themes || []).sort((a: any, b: any) => a.ordem - b.ordem);
+
+        // Função para determinar o tema de uma pergunta baseado na ordem
+        const getThemeForQuestion = (questionOrdem: number): string => {
+          let currentTheme = 'Sem tema';
+          for (const theme of sortedThemes) {
+            if (theme.ordem < questionOrdem) {
+              currentTheme = theme.title;
+            } else {
+              break;
+            }
+          }
+          return currentTheme;
+        };
 
         // Agrupar respostas por pergunta e resposta
         const responseMap = new Map<string, Map<string, number>>();
@@ -328,8 +339,8 @@ const Forms = () => {
           const questionKey = `${question.id}|${question.question_text}`;
           responseMap.set(questionKey, new Map());
           
-          // Mapear pergunta ao seu tema
-          const themeName = question.theme_id ? (themesMap.get(question.theme_id) || 'Sem tema') : 'Sem tema';
+          // Determinar tema baseado na ordem
+          const themeName = getThemeForQuestion(question.ordem || 0);
           questionThemeMap.set(questionKey, themeName);
         });
 
