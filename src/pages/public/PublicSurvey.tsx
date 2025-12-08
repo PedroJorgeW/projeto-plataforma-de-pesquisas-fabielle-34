@@ -487,7 +487,7 @@ const PublicSurvey = () => {
             {form.title}
           </h1>
           {form.description && (
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground break-words">
               {form.description}
             </p>
           )}
